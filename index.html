@@ -3,28 +3,122 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ARI FASHION - Sistema de Cotizaciones</title>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Librerías PDF / Canvas -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <title>ARI FASHION - Cotizaciones</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f1f5f9; color: #334155; margin: 0; padding: 0; }
+    .header { background: #ffffff; padding: 16px; border-bottom: 2px solid #fbcfe8; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .title { font-size: 20px; font-weight: bold; color: #0f172a; margin: 0; }
+    .subtitle { font-size: 11px; color: #db2777; text-transform: uppercase; letter-spacing: 1px; }
+    .top-controls { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .input-sm { padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; width: 80px; text-align: right; }
+    .btn-toggle { padding: 4px 10px; font-size: 12px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; border-radius: 4px; }
+    .btn-toggle.active { background: #db2777; color: white; border-color: #db2777; }
+    
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr; gap: 20px; }
+    @media (min-width: 900px) { .container { grid-template-columns: 1fr 1fr; } }
+    
+    .card { background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .section-title { font-size: 13px; font-weight: bold; color: #db2777; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 12px; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .input-text { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    
+    .item-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+    .btn-add { background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+    .btn-main { background: #db2777; color: white; width: 100%; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+    .btn-main:hover { background: #be185d; }
+    
+    /* Documento Factura */
+    .invoice { background: white; padding: 24px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; }
+    .inv-header { display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px; }
+    .inv-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    .inv-table th, .inv-table td { padding: 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    .inv-table th { color: #64748b; font-size: 11px; border-bottom: 2px solid #e2e8f0; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    
+    @media print {
+      body * { visibility: hidden; }
+      #invoice-document, #invoice-document * { visibility: visible; }
+      #invoice-document { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; }
+      .no-print { display: none !important; }
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
+<body>
 
-  <div id="app"></div>
+  <header class="header no-print">
+    <div>
+      <h1 class="title">ARI FASHION</h1>
+      <span class="subtitle">belleza, moda y estilo</span>
+    </div>
+    <div class="top-controls">
+      <span>Tasa BCV: Bs.</span>
+      <input type="number" step="0.01" id="exchangeRate" class="input-sm" value="56.50" oninput="updateState('exchangeRate', this.value)" />
+      <div>
+        <button id="btn-usd" class="btn-toggle active" onclick="setCurrency('USD')">USD ($)</button>
+        <button id="btn-ves" class="btn-toggle" onclick="setCurrency('VES')">Bs. (VES)</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container no-print">
+    <!-- FORMULARIO -->
+    <div class="card">
+      <div class="section-title">Datos Generales</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>N° Cotización</label>
+          <input type="text" id="invoiceNumber" class="input-text" value="0001" oninput="updateState('invoiceNumber', this.value)" />
+        </div>
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="invoiceDate" class="input-text" onchange="updateState('invoiceDate', this.value)" />
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top: 15px;">Datos del Cliente</div>
+      <div class="grid-2">
+        <div class="form-group"><input type="text" placeholder="Nombre / Razón Social" class="input-text" oninput="updateState('clientName', this.value)" /></div>
+        <div class="form-group"><input type="text" placeholder="RIF / C.I." class="input-text" oninput="updateState('clientDoc', this.value)" /></div>
+        <div class="form-group"><input type="text" placeholder="Teléfono" class="input-text" oninput="updateState('clientPhone', this.value)" /></div>
+        <div class="form-group"><input type="text" placeholder="Dirección" class="input-text" oninput="updateState('clientAddress', this.value)" /></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+        <div class="section-title" style="margin: 0;">Ítems</div>
+        <button class="btn-add" onclick="addItem()">+ Agregar Ítem</button>
+      </div>
+      <div id="items-list" style="margin-top: 10px;"></div>
+
+      <div class="grid-2" style="margin-top: 10px;">
+        <div class="form-group">
+          <label>Descuento (%)</label>
+          <input type="number" class="input-text" value="0" oninput="updateState('discountPercent', this.value)" />
+        </div>
+        <div class="form-group">
+          <label>Datos de Pago</label>
+          <input type="text" placeholder="Ej: Pago Móvil / Banco" class="input-text" oninput="updateState('paymentInfo', this.value)" />
+        </div>
+      </div>
+
+      <button class="btn-main" onclick="window.print()">Imprimir / Guardar en PDF</button>
+    </div>
+
+    <!-- VISTA PREVIA -->
+    <div>
+      <div id="invoice-document" class="invoice"></div>
+    </div>
+  </div>
 
   <script>
-    // ESTADO DE LA APLICACIÓN
     const state = {
-      isPreview: false,
       currency: 'USD',
       exchangeRate: 56.50,
-      logoUrl: '',
       invoiceNumber: '0001',
       invoiceDate: new Date().toISOString().split('T')[0],
-      dueDate: '',
       clientName: '',
       clientDoc: '',
       clientPhone: '',
@@ -34,328 +128,147 @@
       paymentInfo: ''
     };
 
-    function renderMoney(amountUSD, amountVES) {
-      const formatUSD = (val) => `$ ${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      const formatVES = (val) => `Bs. ${Number(val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('invoiceDate').value = state.invoiceDate;
 
+    function formatMoney(usd, ves) {
+      const u = `$ ${Number(usd || 0).toFixed(2)}`;
+      const v = `Bs. ${Number(ves || 0).toFixed(2)}`;
       if (state.currency === 'USD') {
-        return `<div><span class="font-bold">${formatUSD(amountUSD)}</span><div class="text-[10px] text-slate-500 font-normal">Eqv: ${formatVES(amountVES)}</div></div>`;
+        return `<strong>${u}</strong><br><span style="color:#64748b; font-size:10px;">Eqv: ${v}</span>`;
       } else {
-        return `<div><span class="font-bold">${formatVES(amountVES)}</span><div class="text-[10px] text-slate-500 font-normal">Eqv: ${formatUSD(amountUSD)}</div></div>`;
+        return `<strong>${v}</strong><br><span style="color:#64748b; font-size:10px;">Eqv: ${u}</span>`;
       }
     }
 
-    function updatePreviewOnly() {
-      const previewNode = document.getElementById('preview-container');
-      if (!previewNode) return;
-
-      const subtotalUSD = state.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
-      const discountUSD = (subtotalUSD * (Number(state.discountPercent) || 0)) / 100;
-      const totalUSD = subtotalUSD - discountUSD;
-
-      const rate = Number(state.exchangeRate) || 1;
-      const subtotalVES = subtotalUSD * rate;
-      const discountVES = discountUSD * rate;
-      const totalVES = totalUSD * rate;
-
-      previewNode.innerHTML = `
-        <div id="invoice-node" class="bg-white p-8 rounded shadow-lg w-full max-w-md text-xs space-y-4">
-          <div class="flex justify-between items-start border-b pb-3">
-            <div>
-              ${state.logoUrl ? `<img src="${state.logoUrl}" class="h-12 object-contain mb-1"/>` : `<h1 class="text-lg font-bold text-slate-900">ARI FASHION</h1>`}
-              <p class="text-[10px] text-pink-600 font-medium uppercase tracking-widest">belleza, moda y estilo</p>
-            </div>
-            <div class="text-right">
-              <h2 class="text-sm font-bold text-slate-800">COTIZACIÓN</h2>
-              <p class="text-xs font-semibold text-pink-600">N° ${state.invoiceNumber}</p>
-              <p class="text-[10px] text-slate-500">Fecha: ${state.invoiceDate}</p>
-            </div>
+    function renderItemsForm() {
+      const container = document.getElementById('items-list');
+      container.innerHTML = state.items.map((item, index) => `
+        <div class="item-box">
+          <input type="text" placeholder="Producto o Servicio" class="input-text" style="margin-bottom: 4px;" value="${item.title}" oninput="updateItem(${index}, 'title', this.value)" />
+          <input type="text" placeholder="Descripción breve" class="input-text" style="margin-bottom: 6px; font-size: 11px;" value="${item.description}" oninput="updateItem(${index}, 'description', this.value)" />
+          <div class="grid-2">
+            <input type="number" placeholder="Cant" class="input-text" value="${item.quantity}" oninput="updateItem(${index}, 'quantity', this.value)" />
+            <input type="number" placeholder="Precio ($)" class="input-text" value="${item.price}" oninput="updateItem(${index}, 'price', this.value)" />
           </div>
-
-          ${state.clientName ? `
-            <div class="bg-slate-50 p-2.5 rounded text-[11px] space-y-0.5 border border-slate-100">
-              <p><strong>Cliente:</strong> ${state.clientName}</p>
-              ${state.clientDoc ? `<p><strong>RIF/C.I.:</strong> ${state.clientDoc}</p>` : ''}
-              ${state.clientPhone ? `<p><strong>Teléfono:</strong> ${state.clientPhone}</p>` : ''}
-              ${state.clientAddress ? `<p><strong>Dirección:</strong> ${state.clientAddress}</p>` : ''}
-            </div>
-          ` : ''}
-
-          <table class="w-full text-left text-[11px]">
-            <thead>
-              <tr class="border-b border-slate-200 text-slate-500">
-                <th class="py-1">Descripción</th>
-                <th class="py-1 text-center">Cant</th>
-                <th class="py-1 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${state.items.map(it => `
-                <tr class="border-b border-slate-100">
-                  <td class="py-1.5">
-                    <p class="font-semibold">${it.title || 'Ítem'}</p>
-                    ${it.description ? `<p class="text-[9px] text-slate-400">${it.description}</p>` : ''}
-                  </td>
-                  <td class="py-1.5 text-center">${it.quantity}</td>
-                  <td class="py-1.5 text-right">${renderMoney(it.quantity * it.price, it.quantity * it.price * rate)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-
-          <div class="flex justify-end pt-2">
-            <div class="w-1/2 text-right space-y-1">
-              <div class="flex justify-between text-[11px]"><span>Subtotal:</span> ${renderMoney(subtotalUSD, subtotalVES)}</div>
-              ${state.discountPercent > 0 ? `<div class="flex justify-between text-[11px] text-red-600"><span>Desc. (${state.discountPercent}%):</span> -${renderMoney(discountUSD, discountVES)}</div>` : ''}
-              <div class="flex justify-between font-bold text-xs border-t pt-1"><span>TOTAL:</span> ${renderMoney(totalUSD, totalVES)}</div>
-            </div>
-          </div>
-
-          ${state.paymentInfo ? `
-            <div class="border-t pt-2 text-[10px] text-slate-600">
-              <p class="font-bold text-slate-800">Métodos de Pago:</p>
-              <p>${state.paymentInfo}</p>
-            </div>
-          ` : ''}
+          ${state.items.length > 1 ? `<div style="text-align:right; margin-top:4px;"><a href="#" onclick="removeItem(${index})" style="color:#ef4444; font-size:11px; text-decoration:none;">Eliminar</a></div>` : ''}
         </div>
-      `;
+      `).join('');
     }
 
-    function render() {
-      const app = document.getElementById('app');
+    function renderPreview() {
+      const doc = document.getElementById('invoice-document');
+      const rate = Number(state.exchangeRate) || 1;
       
-      const subtotalUSD = state.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
+      const subtotalUSD = state.items.reduce((s, i) => s + (Number(i.quantity) * Number(i.price) || 0), 0);
       const discountUSD = (subtotalUSD * (Number(state.discountPercent) || 0)) / 100;
       const totalUSD = subtotalUSD - discountUSD;
 
-      const rate = Number(state.exchangeRate) || 1;
-      const subtotalVES = subtotalUSD * rate;
-      const discountVES = discountUSD * rate;
-      const totalVES = totalUSD * rate;
-
-      app.innerHTML = `
-        <div class="min-h-screen bg-slate-100 text-slate-800">
-          ${!state.isPreview ? `
-            <header class="bg-white border-b border-pink-100 shadow-sm sticky top-0 z-30 p-4">
-              <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h1 class="text-xl font-bold text-slate-900 font-serif">ARI FASHION</h1>
-                  <p class="text-xs text-pink-600 font-medium tracking-widest uppercase">belleza, moda y estilo</p>
-                </div>
-                <div class="flex items-center space-x-3 text-xs sm:text-sm">
-                  <span class="text-slate-500 font-medium">Tasa BCV: Bs.</span>
-                  <input type="number" step="0.01" value="${state.exchangeRate}" oninput="updateStateNoRender('exchangeRate', this.value)" class="w-20 border border-slate-200 rounded px-2 py-1 font-semibold text-right" />
-                  <div class="bg-slate-100 p-1 rounded flex border">
-                    <button onclick="setCurrency('USD')" class="px-2 py-1 text-xs font-semibold rounded ${state.currency === 'USD' ? 'bg-white text-pink-600 shadow' : ''}">USD ($)</button>
-                    <button onclick="setCurrency('VES')" class="px-2 py-1 text-xs font-semibold rounded ${state.currency === 'VES' ? 'bg-white text-pink-600 shadow' : ''}">Bs. (VES)</button>
-                  </div>
-                </div>
-              </div>
-            </header>
-          ` : `
-            <div class="bg-slate-900 text-white sticky top-0 z-50 p-3 shadow-xl flex justify-between items-center max-w-7xl mx-auto rounded-b">
-              <span class="text-xs text-slate-300">Modo Vista Previa Activado</span>
-              <div class="flex space-x-2">
-                <button onclick="exportPDF()" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-xs font-medium rounded text-white shadow">Descargar PDF</button>
-                <button onclick="togglePreview(false)" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-medium rounded text-slate-200">Volver a Editar</button>
-              </div>
-            </div>
-          `}
-
-          <main class="max-w-7xl mx-auto p-4 md:p-6">
-            ${!state.isPreview ? `
-              <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- FORMULARIO -->
-                <div class="lg:col-span-6 space-y-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <h2 class="text-sm font-bold text-pink-600 uppercase border-b pb-2">Configuración General</h2>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label class="block font-semibold mb-1">Logo (Imagen)</label>
-                      <input type="file" accept="image/*" onchange="handleLogo(event)" class="block w-full text-xs text-slate-500 mb-1" />
-                    </div>
-                    <div class="space-y-2">
-                      <div>
-                        <label class="block font-semibold mb-1">N° Factura / Control</label>
-                        <input type="text" value="${state.invoiceNumber}" oninput="updateStateNoRender('invoiceNumber', this.value)" class="w-full p-2 border rounded font-semibold" />
-                      </div>
-                      <div class="grid grid-cols-2 gap-2">
-                        <div>
-                          <label class="block text-[10px] font-semibold">Emisión</label>
-                          <input type="date" value="${state.invoiceDate}" onchange="updateStateNoRender('invoiceDate', this.value)" class="w-full p-1 border rounded" />
-                        </div>
-                        <div>
-                          <label class="block text-[10px] font-semibold">Vencimiento</label>
-                          <input type="date" value="${state.dueDate}" onchange="updateStateNoRender('dueDate', this.value)" class="w-full p-1 border rounded" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <h2 class="text-sm font-bold text-pink-600 uppercase border-b pb-2 pt-2">Datos del Cliente</h2>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <input type="text" placeholder="Nombre / Razón Social" value="${state.clientName}" oninput="updateStateNoRender('clientName', this.value)" class="w-full p-2 border rounded" />
-                    <input type="text" placeholder="C.I. / RIF" value="${state.clientDoc}" oninput="updateStateNoRender('clientDoc', this.value)" class="w-full p-2 border rounded" />
-                    <input type="text" placeholder="Teléfono" value="${state.clientPhone}" oninput="updateStateNoRender('clientPhone', this.value)" class="w-full p-2 border rounded" />
-                    <input type="text" placeholder="Dirección" value="${state.clientAddress}" oninput="updateStateNoRender('clientAddress', this.value)" class="w-full p-2 border rounded" />
-                  </div>
-
-                  <div class="flex justify-between items-center border-b pb-1 pt-2">
-                    <h2 class="text-sm font-bold text-pink-600 uppercase">Ítems</h2>
-                    <button onclick="addItem()" class="bg-pink-50 text-pink-700 text-xs px-2 py-1 rounded font-bold border border-pink-200">+ Agregar</button>
-                  </div>
-
-                  <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    ${state.items.map((item, idx) => `
-                      <div class="p-3 bg-slate-50 border rounded text-xs space-y-2">
-                        <input type="text" placeholder="Producto / Servicio" value="${item.title}" oninput="updateItemNoRender(${idx}, 'title', this.value)" class="w-full p-1.5 border rounded font-medium" />
-                        <input type="text" placeholder="Descripción adicional" value="${item.description}" oninput="updateItemNoRender(${idx}, 'description', this.value)" class="w-full p-1 border rounded text-[11px]" />
-                        <div class="flex gap-2">
-                          <input type="number" placeholder="Cant" value="${item.quantity}" oninput="updateItemNoRender(${idx}, 'quantity', this.value)" class="w-1/2 p-1 border rounded" />
-                          <input type="number" placeholder="Precio ($)" value="${item.price}" oninput="updateItemNoRender(${idx}, 'price', this.value)" class="w-1/2 p-1 border rounded" />
-                        </div>
-                        ${state.items.length > 1 ? `<button onclick="removeItem(${idx})" class="text-red-500 text-[11px]">Eliminar Ítem</button>` : ''}
-                      </div>
-                    `).join('')}
-                  </div>
-
-                  <div class="border-t pt-2 grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <label class="block font-semibold mb-1">Descuento (%)</label>
-                      <input type="number" value="${state.discountPercent}" oninput="updateStateNoRender('discountPercent', this.value)" class="w-full p-2 border rounded" />
-                    </div>
-                    <div>
-                      <label class="block font-semibold mb-1">Datos de Pago / Banco</label>
-                      <input type="text" placeholder="Ej: Pago Móvil / Zelle" value="${state.paymentInfo}" oninput="updateStateNoRender('paymentInfo', this.value)" class="w-full p-2 border rounded" />
-                    </div>
-                  </div>
-
-                  <button onclick="togglePreview(true)" class="w-full mt-4 bg-pink-600 text-white text-xs font-bold py-2.5 rounded shadow hover:bg-pink-700">
-                    Ver Documento / Generar PDF
-                  </button>
-                </div>
-
-                <!-- VISTA PREVIA LATERAL -->
-                <div id="preview-container" class="lg:col-span-6 bg-slate-200 p-4 rounded-xl flex justify-center items-start overflow-auto">
-                </div>
-              </div>
-            ` : `
-              <!-- MODAL COMPLETO -->
-              <div class="flex justify-center py-4">
-                <div id="invoice-node" class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-xl text-xs space-y-6">
-                  <div class="flex justify-between items-start border-b pb-4">
-                    <div>
-                      ${state.logoUrl ? `<img src="${state.logoUrl}" class="h-16 object-contain mb-2"/>` : `<h1 class="text-2xl font-bold text-slate-900 font-serif">ARI FASHION</h1>`}
-                      <p class="text-xs text-pink-600 font-medium uppercase tracking-widest">belleza, moda y estilo</p>
-                    </div>
-                    <div class="text-right">
-                      <h2 class="text-lg font-bold text-slate-800">COTIZACIÓN / FACTURA</h2>
-                      <p class="text-sm font-semibold text-pink-600">N° ${state.invoiceNumber}</p>
-                      <p class="text-xs text-slate-500">Fecha: ${state.invoiceDate}</p>
-                      ${state.dueDate ? `<p class="text-xs text-slate-500">Vencimiento: ${state.dueDate}</p>` : ''}
-                    </div>
-                  </div>
-
-                  ${state.clientName ? `
-                    <div class="bg-slate-50 p-4 rounded-lg text-xs space-y-1 border border-slate-100">
-                      <p><strong>Cliente:</strong> ${state.clientName}</p>
-                      ${state.clientDoc ? `<p><strong>RIF/C.I.:</strong> ${state.clientDoc}</p>` : ''}
-                      ${state.clientPhone ? `<p><strong>Teléfono:</strong> ${state.clientPhone}</p>` : ''}
-                      ${state.clientAddress ? `<p><strong>Dirección:</strong> ${state.clientAddress}</p>` : ''}
-                    </div>
-                  ` : ''}
-
-                  <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr class="border-b-2 border-slate-200 text-slate-600">
-                        <th class="py-2">Descripción</th>
-                        <th class="py-2 text-center">Cant</th>
-                        <th class="py-2 text-right">Precio U.</th>
-                        <th class="py-2 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${state.items.map(it => `
-                        <tr class="border-b border-slate-100">
-                          <td class="py-2">
-                            <p class="font-bold">${it.title || 'Sin título'}</p>
-                            ${it.description ? `<p class="text-slate-500 text-[10px]">${it.description}</p>` : ''}
-                          </td>
-                          <td class="py-2 text-center">${it.quantity}</td>
-                          <td class="py-2 text-right">${renderMoney(it.price, it.price * rate)}</td>
-                          <td class="py-2 text-right">${renderMoney(it.quantity * it.price, it.quantity * it.price * rate)}</td>
-                        </tr>
-                      `).join('')}
-                    </tbody>
-                  </table>
-
-                  <div class="flex justify-end pt-2">
-                    <div class="w-1/2 space-y-1 text-xs text-right">
-                      <div class="flex justify-between"><span>Subtotal:</span> <span>${renderMoney(subtotalUSD, subtotalVES)}</span></div>
-                      ${state.discountPercent > 0 ? `<div class="flex justify-between text-red-600"><span>Descuento (${state.discountPercent}%):</span> <span>-${renderMoney(discountUSD, discountVES)}</span></div>` : ''}
-                      <div class="flex justify-between font-bold text-sm border-t pt-1 text-slate-900"><span>TOTAL:</span> <span>${renderMoney(totalUSD, totalVES)}</span></div>
-                    </div>
-                  </div>
-
-                  ${state.paymentInfo ? `
-                    <div class="border-t pt-3 text-[11px] text-slate-600">
-                      <p class="font-bold text-slate-800">Métodos de Pago / Banco:</p>
-                      <p class="whitespace-pre-line">${state.paymentInfo}</p>
-                    </div>
-                  ` : ''}
-                </div>
-              </div>
-            `}
-          </main>
+      doc.innerHTML = `
+        <div class="inv-header">
+          <div>
+            <h1 style="margin:0; font-size:18px; color:#0f172a;">ARI FASHION</h1>
+            <div style="color:#db2777; font-size:10px; font-weight:bold; letter-spacing:1px;">BELLEZA, MODA Y ESTILO</div>
+          </div>
+          <div class="text-right">
+            <h3 style="margin:0; font-size:14px;">COTIZACIÓN</h3>
+            <div style="color:#db2777; font-weight:bold;">N° ${state.invoiceNumber}</div>
+            <div style="color:#64748b; font-size:10px;">Fecha: ${state.invoiceDate}</div>
+          </div>
         </div>
+
+        ${state.clientName ? `
+          <div style="background:#f8fafc; padding:10px; border-radius:4px; margin-bottom:12px; font-size:11px;">
+            <div><strong>Cliente:</strong> ${state.clientName}</div>
+            ${state.clientDoc ? `<div><strong>RIF/C.I.:</strong> ${state.clientDoc}</div>` : ''}
+            ${state.clientPhone ? `<div><strong>Teléfono:</strong> ${state.clientPhone}</div>` : ''}
+            ${state.clientAddress ? `<div><strong>Dirección:</strong> ${state.clientAddress}</div>` : ''}
+          </div>
+        ` : ''}
+
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>Descripción</th>
+              <th class="text-center">Cant</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.items.map(it => {
+              const rowTotUSD = Number(it.quantity) * Number(it.price) || 0;
+              return `
+                <tr>
+                  <td>
+                    <strong>${it.title || 'Ítem'}</strong>
+                    ${it.description ? `<br><span style="color:#64748b; font-size:10px;">${it.description}</span>` : ''}
+                  </td>
+                  <td class="text-center">${it.quantity}</td>
+                  <td class="text-right">${formatMoney(rowTotUSD, rowTotUSD * rate)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:15px;">
+          <div style="width:200px;" class="text-right">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span>Subtotal:</span>
+              <span>${formatMoney(subtotalUSD, subtotalUSD * rate)}</span>
+            </div>
+            ${state.discountPercent > 0 ? `
+              <div style="display:flex; justify-content:space-between; color:#ef4444; margin-bottom:4px;">
+                <span>Desc (${state.discountPercent}%):</span>
+                <span>-${formatMoney(discountUSD, discountUSD * rate)}</span>
+              </div>
+            ` : ''}
+            <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px solid #cbd5e1; padding-top:4px; font-size:13px;">
+              <span>TOTAL:</span>
+              <span>${formatMoney(totalUSD, totalUSD * rate)}</span>
+            </div>
+          </div>
+        </div>
+
+        ${state.paymentInfo ? `
+          <div style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:10px; font-size:10px; color:#475569;">
+            <strong>Métodos de Pago:</strong><br>${state.paymentInfo}
+          </div>
+        ` : ''}
       `;
-
-      if (!state.isPreview) {
-        updatePreviewOnly();
-      }
     }
 
-    // HANDLERS OPTIMIZADOS PARA NO PERDER EL FOCO
-    function updateStateNoRender(key, val) { 
-      state[key] = val; 
-      updatePreviewOnly();
+    function updateState(key, val) {
+      state[key] = val;
+      renderPreview();
     }
-    
-    function updateItemNoRender(idx, key, val) {
+
+    function updateItem(idx, key, val) {
       state.items[idx][key] = val;
-      updatePreviewOnly();
+      renderPreview();
     }
 
-    function setCurrency(curr) { state.currency = curr; render(); }
-    function togglePreview(val) { state.isPreview = val; render(); }
-    
     function addItem() {
       state.items.push({ id: Date.now(), title: '', description: '', quantity: 1, price: 0 });
-      render();
+      renderItemsForm();
+      renderPreview();
     }
 
     function removeItem(idx) {
-      if (state.items.length > 1) {
-        state.items.splice(idx, 1);
-        render();
-      }
+      state.items.splice(idx, 1);
+      renderItemsForm();
+      renderPreview();
     }
 
-    function handleLogo(e) {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => { state.logoUrl = reader.result; updatePreviewOnly(); };
-        reader.readAsDataURL(file);
-      }
+    function setCurrency(curr) {
+      state.currency = curr;
+      document.getElementById('btn-usd').className = `btn-toggle ${curr === 'USD' ? 'active' : ''}`;
+      document.getElementById('btn-ves').className = `btn-toggle ${curr === 'VES' ? 'active' : ''}`;
+      renderPreview();
     }
 
-    async function exportPDF() {
-      const el = document.getElementById('invoice-node');
-      if (!el) return;
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/png');
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, 0);
-      pdf.save(`Factura_Ari_Fashion_${state.invoiceNumber |
+    // Inicializar
+    renderItemsForm();
+    renderPreview();
+  </script>
+</body>
+</html>
