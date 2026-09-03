@@ -1,4 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cotizador Web</title>
+  
+  <!-- Carga de Tailwind CSS para los estilos -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Carga de React, ReactDOM y Babel para interpretar JSX -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-900 text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+   import React, { useState, useRef, useEffect } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -967,3 +986,6 @@ const InvoiceDocument = React.forwardRef(({
     </div>
   );
 });
+  </script>
+</body>
+</html>
