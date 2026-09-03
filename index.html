@@ -3,989 +3,333 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cotizador Web</title>
+  <title>ARI FASHION - Sistema de Cotizaciones</title>
   
-  <!-- Carga de Tailwind CSS para los estilos -->
+  <!-- Carga de Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Carga de React, ReactDOM y Babel para interpretar JSX -->
+  <!-- Carga de React, ReactDOM y Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Carga de librerías para exportar PDF e Imagen -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-<body class="bg-slate-900 text-white">
+<body class="bg-slate-100 text-slate-800 font-sans antialiased">
   <div id="root"></div>
 
   <script type="text/babel">
-   import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Eye, 
-  Edit3, 
-  Download, 
-  FileText, 
-  Image as ImageIcon, 
-  DollarSign, 
-  RefreshCw, 
-  Sparkles,
-  CheckCircle2,
-  Building,
-  User,
-  Calendar,
-  CreditCard,
-  X
-} from 'lucide-react';
+    const { useState, useRef, useEffect } = React;
 
-export default function App() {
-  // --- ESTADOS DE CONFIGURACIÓN Y NAVEGACIÓN ---
-  const [isPreview, setIsPreview] = useState(false);
-  const [currency, setCurrency] = useState('USD'); // 'USD' | 'VES'
-  const [exchangeRate, setExchangeRate] = useState(56.50); // Tasa BCV por defecto o personalizable
-  const [isExporting, setIsExporting] = useState(false);
+    function App() {
+      const [isPreview, setIsPreview] = useState(false);
+      const [currency, setCurrency] = useState('USD');
+      const [exchangeRate, setExchangeRate] = useState(56.50);
+      const [isExporting, setIsExporting] = useState(false);
 
-  // Carga dinámica de librerías externas para exportación
-  useEffect(() => {
-    const loadScript = (src) => {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    };
+      const [logoUrl, setLogoUrl] = useState('');
+      const [invoiceNumber, setInvoiceNumber] = useState('0001');
+      const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+      const [dueDate, setDueDate] = useState('');
 
-    Promise.all([
-      loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
-      loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
-    ]).catch((err) => console.error('Error al cargar librerías de exportación:', err));
-  }, []);
+      const [clientName, setClientName] = useState('');
+      const [clientDoc, setClientDoc] = useState('');
+      const [clientPhone, setClientPhone] = useState('');
+      const [clientAddress, setClientAddress] = useState('');
 
-  // --- ESTADOS DE LA FACTURA ---
-  const [logoUrl, setLogoUrl] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('0001');
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dueDate, setDueDate] = useState('');
+      const [items, setItems] = useState([
+        { id: 1, title: '', description: '', quantity: 1, price: 0 }
+      ]);
 
-  // Datos Cliente
-  const [clientName, setClientName] = useState('');
-  const [clientDoc, setClientDoc] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientAddress, setClientAddress] = useState('');
+      const [discountPercent, setDiscountPercent] = useState(0);
+      const [notes, setNotes] = useState('');
+      const [paymentInfo, setPaymentInfo] = useState('');
 
-  // Ítems
-  const [items, setItems] = useState([
-    { id: 1, title: '', description: '', quantity: 1, price: 0 }
-  ]);
+      const invoiceRef = useRef(null);
 
-  // Finanzas, Descuentos y Pagos
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [notes, setNotes] = useState('');
-  const [paymentInfo, setPaymentInfo] = useState('');
+      const subtotalUSD = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
+      const discountUSD = (subtotalUSD * (Number(discountPercent) || 0)) / 100;
+      const totalUSD = subtotalUSD - discountUSD;
 
-  // Ref para la captura de pantalla o generación de PDF/Imagen
-  const invoiceRef = useRef(null);
+      const rate = Number(exchangeRate) || 1;
+      const subtotalVES = subtotalUSD * rate;
+      const discountVES = discountUSD * rate;
+      const totalVES = totalUSD * rate;
 
-  // --- CÁLCULOS FINANCIEROS ---
-  const calculateSubtotalUSD = () => {
-    return items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
-  };
-
-  const subtotalUSD = calculateSubtotalUSD();
-  const discountUSD = (subtotalUSD * (Number(discountPercent) || 0)) / 100;
-  const totalUSD = subtotalUSD - discountUSD;
-
-  // Conversión a Bolívares
-  const rate = Number(exchangeRate) || 1;
-  const subtotalVES = subtotalUSD * rate;
-  const discountVES = discountUSD * rate;
-  const totalVES = totalUSD * rate;
-
-  // --- GESTIÓN DE ÍTEMS ---
-  const handleAddItem = () => {
-    setItems([
-      ...items,
-      { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }
-    ]);
-  };
-
-  const handleRemoveItem = (id) => {
-    if (items.length === 1) return;
-    setItems(items.filter(item => item.id !== id));
-  };
-
-  const handleItemChange = (id, field, value) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        return { ...item, [field]: value };
-      }
-      return item;
-    }));
-  };
-
-  // Carga de Logo Local
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoUrl(reader.result);
+      const handleAddItem = () => {
+        setItems([...items, { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }]);
       };
-      reader.readAsDataURL(file);
-    }
-  };
 
-  // --- FORMATEADORES MONETARIOS ---
-  const formatUSD = (val) => `$ ${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const formatVES = (val) => `Bs. ${Number(val).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const handleRemoveItem = (id) => {
+        if (items.length === 1) return;
+        setItems(items.filter(item => item.id !== id));
+      };
 
-  const renderMoney = (amountUSD, amountVES) => {
-    if (currency === 'USD') {
-      return (
-        <div>
-          <span className="font-bold">{formatUSD(amountUSD)}</span>
-          <div className="text-[10px] text-slate-500 font-normal">
-            Eqv: {formatVES(amountVES)}
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div>
-          <span className="font-bold">{formatVES(amountVES)}</span>
-          <div className="text-[10px] text-slate-500 font-normal">
-            Eqv: {formatUSD(amountUSD)}
-          </div>
-        </div>
-      );
-    }
-  };
+      const handleItemChange = (id, field, value) => {
+        setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+      };
 
-  // --- FUNCIONES DE DESCARGA E IMPRESIÓN ---
-  const exportAsImage = async (format = 'png') => {
-    if (!invoiceRef.current) return;
-    const html2canvasLib = window.html2canvas;
-    if (!html2canvasLib) return;
-
-    setIsExporting(true);
-    try {
-      const canvas = await html2canvasLib(invoiceRef.current, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      });
-      const image = canvas.toDataURL(`image/${format}`, 1.0);
-      const link = document.createElement('a');
-      link.download = `Factura_Ari_Fashion_${invoiceNumber || 'SN'}.${format}`;
-      link.href = image;
-      link.click();
-    } catch (err) {
-      console.error('Error al generar imagen:', err);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const exportAsPDF = async () => {
-    if (!invoiceRef.current) return;
-    const html2canvasLib = window.html2canvas;
-    const jsPDFClass = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
-    if (!html2canvasLib || !jsPDFClass) return;
-
-    setIsExporting(true);
-    try {
-      const canvas = await html2canvasLib(invoiceRef.current, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDFClass('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Factura_Ari_Fashion_${invoiceNumber || 'SN'}.pdf`);
-    } catch (err) {
-      console.error('Error al generar PDF:', err);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 font-sans antialiased selection:bg-pink-500 selection:text-white">
-      {/* ESTILOS DE IMPRESIÓN A4 DIRECTOS */}
-      <style>{`
-        @media print {
-          body {
-            background-color: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .print-area {
-            box-shadow: none !important;
-            border-radius: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 2.5rem !important;
-          }
-          @page {
-            size: A4;
-            margin: 0;
-          }
+      const handleLogoUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => setLogoUrl(reader.result);
+          reader.readAsDataURL(file);
         }
-      `}</style>
+      };
 
-      {/* ========================================== */}
-      {/* ENCABEZADO DE MARCA GLOBAL (SÓLO EN EDICIÓN) */}
-      {/* ========================================== */}
-      {!isPreview && (
-        <header className="no-print bg-white border-b border-pink-100 shadow-sm sticky top-0 z-30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-white shadow-md shadow-pink-200">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-wider text-slate-900 font-serif leading-none">
-                  ARI FASHION
-                </h1>
-                <p className="text-xs text-pink-600 font-medium tracking-widest uppercase">
-                  belleza, moda y estilo
-                </p>
-              </div>
-            </div>
+      const formatUSD = (val) => `$ ${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const formatVES = (val) => `Bs. ${Number(val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            <div className="flex items-center space-x-3 text-xs sm:text-sm">
-              <span className="text-slate-500 font-medium hidden md:inline">
-                Tasa BCV / Referencia:
-              </span>
-              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 space-x-1 focus-within:ring-2 focus-within:ring-pink-500">
-                <span className="text-slate-400 font-semibold">Bs.</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={exchangeRate}
-                  onChange={(e) => setExchangeRate(e.target.value)}
-                  placeholder="56.50"
-                  className="w-20 bg-transparent text-slate-800 font-semibold focus:outline-none text-right"
-                />
-              </div>
-
-              {/* Selector Moneda */}
-              <div className="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200">
-                <button
-                  onClick={() => setCurrency('USD')}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                    currency === 'USD'
-                      ? 'bg-white text-pink-600 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  USD ($)
-                </button>
-                <button
-                  onClick={() => setCurrency('VES')}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                    currency === 'VES'
-                      ? 'bg-white text-pink-600 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Bs. (VES)
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-      )}
-
-      {/* ========================================== */}
-      {/* MODAL / BARRA TOP MODO VISTA PREVIA (isPreview) */}
-      {/* ========================================== */}
-      {}
-      {isPreview && (
-        <div className="no-print bg-slate-900 text-white sticky top-0 z-50 px-4 py-3 shadow-xl border-b border-slate-800">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-            <div className="flex items-center space-x-2 text-sm text-slate-300">
-              <CheckCircle2 className="w-5 h-5 text-pink-400 shrink-0" />
-              <span>
-                <strong>Listo para guardar.</strong> Usa los botones de descarga.
-              </span>
-            </div>
-
-            <div className="flex items-center flex-wrap gap-2">
-              <button
-                onClick={() => exportAsImage('png')}
-                disabled={isExporting}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-200 flex items-center space-x-1.5 transition border border-slate-700"
-              >
-                <Download className="w-3.5 h-3.5 text-pink-400" />
-                <span>Descargar Imagen</span>
-              </button>
-
-              <button
-                onClick={exportAsPDF}
-                disabled={isExporting}
-                className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-xs font-medium rounded-lg text-white flex items-center space-x-1.5 transition shadow-sm"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Descargar PDF</span>
-              </button>
-
-              <button
-                onClick={() => setIsPreview(false)}
-                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-medium rounded-lg flex items-center space-x-1 border border-rose-500/30 transition ml-2"
-              >
-                <X className="w-4 h-4" />
-                <span>Volver a Editar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================== */}
-      {/* CUERPO PRINCIPAL DE LA APLICACIÓN */}
-      {/* ========================================== */}
-      <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6">
-        {isPreview ? (
-          /* MODO VISTA PREVIA FULL */
-          <div className="flex justify-center py-6">
-            <div className="w-full max-w-[800px] transition-all duration-300">
-              <InvoiceDocument
-                ref={invoiceRef}
-                logoUrl={logoUrl}
-                invoiceNumber={invoiceNumber}
-                invoiceDate={invoiceDate}
-                dueDate={dueDate}
-                clientName={clientName}
-                clientDoc={clientDoc}
-                clientPhone={clientPhone}
-                clientAddress={clientAddress}
-                items={items}
-                discountPercent={discountPercent}
-                notes={notes}
-                paymentInfo={paymentInfo}
-                currency={currency}
-                exchangeRate={exchangeRate}
-                subtotalUSD={subtotalUSD}
-                discountUSD={discountUSD}
-                totalUSD={totalUSD}
-                subtotalVES={subtotalVES}
-                discountVES={discountVES}
-                totalVES={totalVES}
-                renderMoney={renderMoney}
-              />
-            </div>
+      const renderMoney = (amountUSD, amountVES) => {
+        return currency === 'USD' ? (
+          <div>
+            <span className="font-bold">{formatUSD(amountUSD)}</span>
+            <div className="text-[10px] text-slate-500 font-normal">Eqv: {formatVES(amountVES)}</div>
           </div>
         ) : (
-          /* MODO EDICIÓN DUAL (EDITOR + MINIATURA VISTA PREVIA) */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-24">
-            
-            {/* PANEL IZQUIERDO: FORMULARIO EDITOR */}
-            <div className="lg:col-span-6 space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm no-print">
-              
-              {/* Sección 1: Logo & Datos Factura */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
-                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
-                  <Building className="w-4 h-4" />
-                  <span>Configuración General</span>
-                </h2>
+          <div>
+            <span className="font-bold">{formatVES(amountVES)}</span>
+            <div className="text-[10px] text-slate-500 font-normal">Eqv: {formatUSD(amountUSD)}</div>
+          </div>
+        );
+      };
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Carga Logo */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Logo Corporativo
-                    </label>
-                    <div className="space-y-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer"
-                      />
-                      <input
-                        type="url"
-                        placeholder="O pega URL del logo..."
-                        value={logoUrl.startsWith('data:') ? '' : logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
-                        className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                      />
-                    </div>
+      const exportAsPDF = async () => {
+        if (!invoiceRef.current) return;
+        const html2canvasLib = window.html2canvas;
+        const jsPDFClass = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+        if (!html2canvasLib || !jsPDFClass) return;
+
+        setIsExporting(true);
+        try {
+          const canvas = await html2canvasLib(invoiceRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDFClass('p', 'mm', 'a4');
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pdf.save(`Factura_Ari_Fashion_${invoiceNumber || 'SN'}.pdf`);
+        } catch (err) {
+          console.error('Error al generar PDF:', err);
+        } finally {
+          setIsExporting(false);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-100 text-slate-800">
+          {!isPreview && (
+            <header className="bg-white border-b border-pink-100 shadow-sm sticky top-0 z-30 p-4">
+              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold text-slate-900 font-serif">ARI FASHION</h1>
+                  <p className="text-xs text-pink-600 font-medium tracking-widest uppercase">belleza, moda y estilo</p>
+                </div>
+                <div className="flex items-center space-x-3 text-xs sm:text-sm">
+                  <span className="text-slate-500 font-medium">Tasa BCV: Bs.</span>
+                  <input type="number" step="0.01" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} className="w-20 border border-slate-200 rounded px-2 py-1 font-semibold text-right" />
+                  <div className="bg-slate-100 p-1 rounded flex border">
+                    <button onClick={() => setCurrency('USD')} className={`px-2 py-1 text-xs font-semibold rounded ${currency === 'USD' ? 'bg-white text-pink-600 shadow' : ''}`}>USD ($)</button>
+                    <button onClick={() => setCurrency('VES')} className={`px-2 py-1 text-xs font-semibold rounded ${currency === 'VES' ? 'bg-white text-pink-600 shadow' : ''}`}>Bs. (VES)</button>
                   </div>
+                </div>
+              </div>
+            </header>
+          )}
 
-                  {/* N° y Fechas */}
-                  <div className="space-y-3">
+          {isPreview && (
+            <div className="bg-slate-900 text-white sticky top-0 z-50 p-3 shadow-xl flex justify-between items-center max-w-7xl mx-auto rounded-b">
+              <span className="text-xs text-slate-300">Modo Vista Previa Activado</span>
+              <div className="flex space-x-2">
+                <button onClick={exportAsPDF} disabled={isExporting} className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-xs font-medium rounded text-white shadow">Descargar PDF</button>
+                <button onClick={() => setIsPreview(false)} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-medium rounded text-slate-200">Volver a Editar</button>
+              </div>
+            </div>
+          )}
+
+          <main className="max-w-7xl mx-auto p-4 md:p-6">
+            {!isPreview ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* FORMULARIO EDITABLE */}
+                <div className="lg:col-span-6 space-y-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <h2 className="text-sm font-bold text-pink-600 uppercase border-b pb-2">Configuración General</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        N° Factura / Control
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ej: N° 0001"
-                        value={invoiceNumber}
-                        onChange={(e) => setInvoiceNumber(e.target.value)}
-                        className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none font-semibold"
-                      />
+                      <label className="block font-semibold mb-1">Logo Corporativo</label>
+                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="block w-full text-xs text-slate-500 mb-1" />
+                      <input type="url" placeholder="O pega URL..." value={logoUrl.startsWith('data:') ? '' : logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="w-full p-2 border rounded" />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                          Fecha Emisión
-                        </label>
-                        <input
-                          type="date"
-                          value={invoiceDate}
-                          onChange={(e) => setInvoiceDate(e.target.value)}
-                          className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                        />
+                        <label className="block font-semibold mb-1">N° Factura / Control</label>
+                        <input type="text" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="w-full p-2 border rounded font-semibold" />
                       </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                          Vencimiento
-                        </label>
-                        <input
-                          type="date"
-                          value={dueDate}
-                          onChange={(e) => setDueDate(e.target.value)}
-                          className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-semibold">Emisión</label>
+                          <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="w-full p-1 border rounded" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold">Vencimiento</label>
+                          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full p-1 border rounded" />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Sección 2: Datos del Cliente */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
-                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
-                  <User className="w-4 h-4" />
-                  <span>Datos del Cliente</span>
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Nombre Completo / Razón Social
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: María Delgado"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                    />
+                  <h2 className="text-sm font-bold text-pink-600 uppercase border-b pb-2 pt-2">Datos del Cliente</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <input type="text" placeholder="Nombre / Razón Social" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full p-2 border rounded" />
+                    <input type="text" placeholder="C.I. / RIF" value={clientDoc} onChange={(e) => setClientDoc(e.target.value)} className="w-full p-2 border rounded" />
+                    <input type="text" placeholder="Teléfono" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="w-full p-2 border rounded" />
+                    <input type="text" placeholder="Dirección" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} className="w-full p-2 border rounded" />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      C.I. / RIF / Pasaporte
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: V-12345678"
-                      value={clientDoc}
-                      onChange={(e) => setClientDoc(e.target.value)}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                    />
+                  <div className="flex justify-between items-center border-b pb-1 pt-2">
+                    <h2 className="text-sm font-bold text-pink-600 uppercase">Ítems</h2>
+                    <button onClick={handleAddItem} className="bg-pink-50 text-pink-700 text-xs px-2 py-1 rounded font-bold border border-pink-200">+ Agregar</button>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Teléfono
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: +58 412 1234567"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                    />
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {items.map((item) => (
+                      <div key={item.id} className="p-3 bg-slate-50 border rounded text-xs space-y-2">
+                        <input type="text" placeholder="Producto / Servicio" value={item.title} onChange={(e) => handleItemChange(item.id, 'title', e.target.value)} className="w-full p-1.5 border rounded font-medium" />
+                        <input type="text" placeholder="Descripción adicional" value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} className="w-full p-1 border rounded text-[11px]" />
+                        <div className="flex gap-2">
+                          <input type="number" placeholder="Cant" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} className="w-1/2 p-1 border rounded" />
+                          <input type="number" placeholder="Precio ($)" value={item.price} onChange={(e) => handleItemChange(item.id, 'price', e.target.value)} className="w-1/2 p-1 border rounded" />
+                        </div>
+                        {items.length > 1 && (
+                          <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 text-[11px]">Eliminar Ítem</button>
+                        )}
+                      </div>
+                    ))}
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Dirección
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ej: Barquisimeto, Lara"
-                      value={clientAddress}
-                      onChange={(e) => setClientAddress(e.target.value)}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                    />
+                  <div className="border-t pt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <label className="block font-semibold mb-1">Descuento (%)</label>
+                      <input type="number" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} className="w-full p-2 border rounded" />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Datos de Pago / Banco</label>
+                      <input type="text" placeholder="Ej: Pago Móvil / Zelle" value={paymentInfo} onChange={(e) => setPaymentInfo(e.target.value)} className="w-full p-2 border rounded" />
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Sección 3: Productos e Ítems Dinámicos */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
-                    <FileText className="w-4 h-4" />
-                    <span>Productos / Servicios</span>
-                  </h2>
-                  <button
-                    onClick={handleAddItem}
-                    className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 font-semibold text-xs rounded-lg transition flex items-center space-x-1 border border-pink-200"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Agregar Ítem</span>
+                  <button onClick={() => setIsPreview(true)} className="w-full mt-4 bg-pink-600 text-white text-xs font-bold py-2.5 rounded shadow hover:bg-pink-700">
+                    Ver Documento / Generar PDF
                   </button>
                 </div>
 
-                <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg relative group transition hover:border-pink-300 space-y-2"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded">
-                          #{index + 1}
-                        </span>
-                        {items.length > 1 && (
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="text-slate-400 hover:text-rose-500 transition p-1"
-                            title="Eliminar producto"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                {/* VISTA PREVIA LATERAL */}
+                <div className="lg:col-span-6 bg-slate-200 p-4 rounded-xl flex justify-center items-start overflow-auto">
+                  <div ref={invoiceRef} className="bg-white p-8 rounded shadow-lg w-full max-w-md text-xs space-y-4">
+                    <div className="flex justify-between items-start border-b pb-3">
+                      <div>
+                        {logoUrl ? <img src={logoUrl} alt="Logo" className="h-12 object-contain mb-1" /> : <h1 className="text-lg font-bold text-slate-900">ARI FASHION</h1>}
+                        <p className="text-[10px] text-pink-600 font-medium uppercase tracking-widest">belleza, moda y estilo</p>
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                        <div className="sm:col-span-7">
-                          <input
-                            type="text"
-                            placeholder="Nombre del Producto (Ej: Vestido Gala Silk)"
-                            value={item.title}
-                            onChange={(e) => handleItemChange(item.id, 'title', e.target.value)}
-                            className="w-full text-xs font-semibold px-2 py-1.5 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="Cant."
-                            value={item.quantity || ''}
-                            onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-                            className="w-full text-xs text-center px-2 py-1.5 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-3">
-                          <div className="relative">
-                            <span className="absolute left-2 top-1.5 text-xs text-slate-400">$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              placeholder="Precio ($)"
-                              value={item.price || ''}
-                              onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
-                              className="w-full text-xs pl-5 pr-2 py-1.5 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none font-semibold text-right"
-                            />
-                          </div>
-                        </div>
+                      <div className="text-right">
+                        <h2 className="text-sm font-bold text-slate-800">COTIZACIÓN</h2>
+                        <p className="text-xs font-semibold text-pink-600">N° {invoiceNumber}</p>
+                        <p className="text-[10px] text-slate-500">Fecha: {invoiceDate}</p>
                       </div>
-
-                      <input
-                        type="text"
-                        placeholder="Descripción corta opcional (Ej: Talla M / Color Rosa Pastel)"
-                        value={item.description}
-                        onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
-                        className="w-full text-[11px] text-slate-600 px-2 py-1 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none"
-                      />
                     </div>
-                  ))}
-                </div>
 
-                {/* Descuento global */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-600">
-                    Descuento Especial (%):
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    placeholder="0"
-                    value={discountPercent || ''}
-                    onChange={(e) => setDiscountPercent(e.target.value)}
-                    className="w-20 text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded text-right font-semibold focus:ring-1 focus:ring-pink-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Sección 4: Finanzas & Notas */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
-                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
-                  <CreditCard className="w-4 h-4" />
-                  <span>Pago, Cuentas & Notas</span>
-                </h2>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Métodos de Pago / Datos Bancarios
-                  </label>
-                  <textarea
-                    rows="3"
-                    placeholder="Ej: Pago Móvil Banco Mercantil | Banesco | Zelle: pagos@arifashion.com"
-                    value={paymentInfo}
-                    onChange={(e) => setPaymentInfo(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                  ></textarea>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Notas o Términos Adicionales
-                  </label>
-                  <textarea
-                    rows="2"
-                    placeholder="Ej: Gracias por tu compra. Cambios válidos por 7 días con etiqueta intacta."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
-                  ></textarea>
-                </div>
-              </div>
-
-            </div>
-
-            {/* PANEL DERECHO: VISTA PREVIA EN VIVO (SLATE-900 BACKGROUND) */}
-            <div className="lg:col-span-6 bg-slate-900 p-4 sm:p-6 rounded-2xl flex flex-col items-center justify-start min-h-[600px] border border-slate-800 shadow-inner no-print overflow-x-auto">
-              <div className="w-full max-w-[550px] mb-3 flex items-center justify-between text-slate-400 text-xs">
-                <span className="flex items-center space-x-1.5 font-medium">
-                  <Eye className="w-3.5 h-3.5 text-pink-400" />
-                  <span>Vista Previa en Vivo (Formato A4)</span>
-                </span>
-                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">
-                  Auto-actualizable
-                </span>
-              </div>
-
-              {/* Contenedor Escalado para simular A4 en desktop */}
-              <div className="w-full max-w-[550px] bg-white rounded-xl shadow-2xl overflow-hidden transform transition-all border border-slate-700">
-                <InvoiceDocument
-                  logoUrl={logoUrl}
-                  invoiceNumber={invoiceNumber}
-                  invoiceDate={invoiceDate}
-                  dueDate={dueDate}
-                  clientName={clientName}
-                  clientDoc={clientDoc}
-                  clientPhone={clientPhone}
-                  clientAddress={clientAddress}
-                  items={items}
-                  discountPercent={discountPercent}
-                  notes={notes}
-                  paymentInfo={paymentInfo}
-                  currency={currency}
-                  exchangeRate={exchangeRate}
-                  subtotalUSD={subtotalUSD}
-                  discountUSD={discountUSD}
-                  totalUSD={totalUSD}
-                  subtotalVES={subtotalVES}
-                  discountVES={discountVES}
-                  totalVES={totalVES}
-                  renderMoney={renderMoney}
-                  isMiniature={true}
-                />
-              </div>
-            </div>
-
-          </div>
-        )}
-      </main>
-
-      {/* ========================================== */}
-      {/* BARRA INFERIOR FIJA (STICKY BOTTOM BAR) */}
-      {/* ========================================== */}
-      {!isPreview && (
-        <div className="no-print fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 shadow-2xl z-40">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center space-x-4">
-              <div>
-                <span className="text-[11px] text-slate-500 uppercase tracking-wider font-bold block">
-                  Total Factura:
-                </span>
-                <div className="flex items-baseline space-x-2">
-                  <span className="text-xl font-black text-slate-900">
-                    {formatUSD(totalUSD)}
-                  </span>
-                  <span className="text-xs text-pink-600 font-semibold">
-                    ({formatVES(totalVES)})
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsPreview(true)}
-              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-pink-200 hover:shadow-pink-300 transition-all transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
-            >
-              <Eye className="w-4 h-4" />
-              <span>👁️ Ver Vista Previa para Descargar</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// =========================================================================
-// COMPONENTE DOCUMENTO DE FACTURA (PLANTILLA A4 ELEGANTE Y MINIMALISTA)
-// =========================================================================
-const InvoiceDocument = React.forwardRef(({
-  logoUrl,
-  invoiceNumber,
-  invoiceDate,
-  dueDate,
-  clientName,
-  clientDoc,
-  clientPhone,
-  clientAddress,
-  items,
-  discountPercent,
-  notes,
-  paymentInfo,
-  currency,
-  exchangeRate,
-  subtotalUSD,
-  discountUSD,
-  totalUSD,
-  subtotalVES,
-  discountVES,
-  totalVES,
-  renderMoney,
-  isMiniature = false
-}, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={`print-area bg-white text-slate-800 font-sans mx-auto relative ${
-        isMiniature ? 'p-6 text-[11px]' : 'p-10 md:p-12 text-xs max-w-[800px] rounded-3xl shadow-xl border border-slate-100'
-      }`}
-      style={{ minHeight: isMiniature ? 'auto' : '1050px' }}
-    >
-      {/* DECORACIÓN CORPORATIVA ROSA EN BORDES */}
-      <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-pink-400 via-rose-500 to-pink-300 rounded-t-3xl no-print" />
-
-      {/* ENCABEZADO FACTURA */}
-      <div className="flex flex-row justify-between items-start pb-8 border-b border-slate-100 gap-4 mt-2">
-        {/* LOGO & MARCA */}
-        <div className="space-y-2 max-w-[60%]">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="Ari Fashion Logo"
-              className="h-14 w-auto object-contain mb-1"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          ) : (
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white font-bold text-base">
-                A
-              </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-widest text-slate-900 font-serif leading-none">
-                  ARI FASHION
-                </h1>
-                <p className="text-[10px] text-pink-600 font-bold tracking-widest uppercase">
-                  belleza, moda y estilo
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <p className="text-[10px] text-slate-500 leading-relaxed font-light">
-            Venta de Ropa, Calzado y Accesorios de Moda.<br />
-            Envíos a nivel nacional & Atención personalizada.
-          </p>
-        </div>
-
-        {/* DETALLES DE FACTURA */}
-        <div className="text-right space-y-1">
-          <div className="inline-block bg-pink-50 text-pink-700 px-3 py-1 rounded-full font-bold text-sm tracking-wider uppercase mb-2">
-            FACTURA
-          </div>
-          <div className="text-slate-900 font-mono font-bold text-base">
-            #{invoiceNumber || '0001'}
-          </div>
-          <div className="text-slate-500 text-[11px]">
-            <strong>Emisión:</strong> {invoiceDate || 'N/A'}
-          </div>
-          {dueDate && (
-            <div className="text-slate-500 text-[11px]">
-              <strong>Vencimiento:</strong> {dueDate}
-            </div>
-          )}
-          <div className="text-[10px] text-slate-400 pt-1">
-            Tasa Ref: Bs. {Number(exchangeRate).toFixed(2)} / USD
-          </div>
-        </div>
-      </div>
-
-      {/* DATOS DEL CLIENTE */}
-      <div className="py-6 border-b border-slate-100">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-pink-600 mb-2">
-          Facturado a:
-        </h3>
-        <div className="grid grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-          <div>
-            <p className="font-bold text-slate-900 text-sm">
-              {clientName || 'Nombre del Cliente'}
-            </p>
-            <p className="text-slate-600 mt-0.5">
-              {clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: Sin especificar'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-slate-600">
-              {clientPhone || 'Teléfono no registrado'}
-            </p>
-            <p className="text-slate-500 truncate mt-0.5">
-              {clientAddress || 'Dirección de entrega'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* TABLA DE PRODUCTOS */}
-      <div className="py-6">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b-2 border-pink-100 text-[10px] uppercase tracking-wider text-slate-400">
-              <th className="pb-3 font-bold">Descripción / Producto</th>
-              <th className="pb-3 font-bold text-center w-16">Cant.</th>
-              <th className="pb-3 font-bold text-right w-28">P. Unitario</th>
-              <th className="pb-3 font-bold text-right w-32">Total</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map((item, idx) => {
-              const qty = Number(item.quantity) || 0;
-              const price = Number(item.price) || 0;
-              const itemTotalUSD = qty * price;
-              const itemTotalVES = itemTotalUSD * exchangeRate;
-
-              return (
-                <tr key={idx} className="group">
-                  <td className="py-3 pr-2">
-                    <p className="font-bold text-slate-900">
-                      {item.title || 'Producto sin título'}
-                    </p>
-                    {item.description && (
-                      <p className="text-[10px] text-slate-500 font-light mt-0.5">
-                        {item.description}
-                      </p>
+                    {clientName && (
+                      <div className="bg-slate-50 p-2.5 rounded text-[11px] space-y-0.5 border border-slate-100">
+                        <p><strong>Cliente:</strong> {clientName}</p>
+                        {clientDoc && <p><strong>RIF/C.I.:</strong> {clientDoc}</p>}
+                        {clientPhone && <p><strong>Teléfono:</strong> {clientPhone}</p>}
+                        {clientAddress && <p><strong>Dirección:</strong> {clientAddress}</p>}
+                      </div>
                     )}
-                  </td>
-                  <td className="py-3 text-center font-medium text-slate-700">
-                    {qty}
-                  </td>
-                  <td className="py-3 text-right font-medium text-slate-700">
-                    {currency === 'USD' ? `$ ${price.toFixed(2)}` : `Bs. ${(price * exchangeRate).toFixed(2)}`}
-                  </td>
-                  <td className="py-3 text-right">
-                    {renderMoney(itemTotalUSD, itemTotalVES)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
 
-      {/* SECCIÓN RESUMEN FINANCIERO & NOTAS */}
-      <div className="pt-4 grid grid-cols-12 gap-6 border-t border-slate-100">
-        
-        {/* IZQUIERDA: NOTAS Y PAGO */}
-        <div className="col-span-7 space-y-4">
-          {paymentInfo && (
-            <div className="bg-pink-50/50 p-3 rounded-xl border border-pink-100/60">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-pink-700 mb-1">
-                Métodos de Pago & Cuentas:
-              </h4>
-              <p className="text-[10px] text-slate-600 whitespace-pre-line leading-relaxed">
-                {paymentInfo}
-              </p>
-            </div>
-          )}
+                    <table className="w-full text-left text-[11px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500">
+                          <th className="py-1">Descripción</th>
+                          <th className="py-1 text-center">Cant</th>
+                          <th className="py-1 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((it) => (
+                          <tr key={it.id} className="border-b border-slate-100">
+                            <td className="py-1.5">
+                              <p className="font-semibold">{it.title || 'Ítem'}</p>
+                              {it.description && <p className="text-[9px] text-slate-400">{it.description}</p>}
+                            </td>
+                            <td className="py-1.5 text-center">{it.quantity}</td>
+                            <td className="py-1.5 text-right">{renderMoney(it.quantity * it.price, it.quantity * it.price * rate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
 
-          {notes && (
-            <div>
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Notas adicionales:
-              </h4>
-              <p className="text-[10px] text-slate-500 italic leading-relaxed">
-                {notes}
-              </p>
-            </div>
-          )}
-        </div>
+                    <div className="flex justify-end pt-2">
+                      <div className="w-1/2 text-right space-y-1">
+                        <div className="flex justify-between text-[11px]"><span>Subtotal:</span> {renderMoney(subtotalUSD, subtotalVES)}</div>
+                        {discountPercent > 0 && <div className="flex justify-between text-[11px] text-red-600"><span>Desc. ({discountPercent}%):</span> -{renderMoney(discountUSD, discountVES)}</div>}
+                        <div className="flex justify-between font-bold text-xs border-t pt-1"><span>TOTAL:</span> {renderMoney(totalUSD, totalVES)}</div>
+                      </div>
+                    </div>
 
-        {/* DERECHA: TOTALES Y DESGLOSE */}
-        <div className="col-span-5 space-y-2 text-right">
-          <div className="flex justify-between items-center text-slate-600 py-1">
-            <span>Subtotal:</span>
-            <span>{renderMoney(subtotalUSD, subtotalVES)}</span>
-          </div>
-
-          {Number(discountPercent) > 0 && (
-            <div className="flex justify-between items-center text-pink-600 py-1">
-              <span>Descuento ({discountPercent}%):</span>
-              <span>- {renderMoney(discountUSD, discountVES)}</span>
-            </div>
-          )}
-
-          {/* TOTAL FINAL DESTACADO */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-3.5 rounded-2xl shadow-md mt-3 flex items-center justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-pink-300">
-              Total a Pagar
-            </span>
-            <div className="text-right">
-              <div className="text-base font-black">
-                {currency === 'USD' ? `$ ${totalUSD.toFixed(2)}` : `Bs. ${totalVES.toFixed(2)}`}
+                    {paymentInfo && (
+                      <div className="border-t pt-2 text-[10px] text-slate-600">
+                        <p className="font-bold text-slate-800">Métodos de Pago:</p>
+                        <p>{paymentInfo}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="text-[10px] text-slate-300 font-light">
-                {currency === 'USD' ? `Eqv: Bs. ${totalVES.toFixed(2)}` : `Eqv: $ ${totalUSD.toFixed(2)}`}
-              </div>
-            </div>
-          </div>
-        </div>
+            ) : (
+              /* MODO COMPLETO VISTA PREVIA */
+              <div className="flex justify-center py-4">
+                <div ref={invoiceRef} className="bg-white p-10 rounded-xl shadow-2xl w-full max-w-xl text-xs space-y-6">
+                  <div className="flex justify-between items-start border-b pb-4">
+                    <div>
+                      {logoUrl ? <img src={logoUrl} alt="Logo" className="h-16 object-contain mb-2" /> : <h1 className="text-2xl font-bold text-slate-900 font-serif">ARI FASHION</h1>}
+                      <p className="text-xs text-pink-600 font-medium uppercase tracking-widest">belleza, moda y estilo</p>
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-lg font-bold text-slate-800">COTIZACIÓN / FACTURA</h2>
+                      <p className="text-sm font-semibold text-pink-600">N° {invoiceNumber}</p>
+                      <p className="text-xs text-slate-500">Fecha: {invoiceDate}</p>
+                      {dueDate && <p className="text-xs text-slate-500">Vencimiento: {dueDate}</p>}
+                    </div>
+                  </div>
 
-      </div>
+                  {clientName && (
+                    <div className="bg-slate-50 p-4 rounded-lg text-xs space-y-1 border border-slate-100">
+                      <p><strong>Cliente:</strong> {clientName}</p>
+                      {clientDoc && <p><strong>RIF/C.I.:</strong> {clientDoc}</p>}
+                      {clientPhone && <p><strong>Teléfono:</strong> {clientPhone}</p>}
+                      {clientAddress && <p><strong>Dirección:</strong> {clientAddress}</p>}
+                    </div>
+                  )}
 
-      {/* PIE DE PÁGINA FINAL DE LA FACTURA */}
-      <div className="mt-12 pt-6 border-t border-slate-100 text-center space-y-1">
-        <p className="text-[11px] font-bold text-slate-800 tracking-wider">
-          ¡Gracias por tu compra en Ari Fashion!
-        </p>
-        <p className="text-[10px] text-slate-400">
-          Sigue las tendencias en moda, belleza y estilo.
-        </p>
-      </div>
-    </div>
-  );
-});
-  </script>
-</body>
-</html>
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-slate-200 text-slate-600">
+                        <th className="py-2">Descripción</th>
+                        <th className="py-2 text-center">Cant</th>
+                        <th className="py-2 text-right">Precio U.</th>
+                        <th className="py-2 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it) => (
+                        <tr key={it.id} className="border-b border-slate-100">
+                          <td className="py-2">
+                            <p className="font-bold">{it.title || 'Sin título'}</p>
+                            {it.description && <p className="text-slate-500 text-[10px]">{it.description}</p>}
+                          </td>
+                          <td className="py-2 text-center">{it.quantity}</td>
+                          <td className="py-2 text-right">{renderMoney(it.price, it.price * rate)}</td>
+                          <td className="py-2 text-right">{renderMoney(it.quantity * it.price, it.quanti
