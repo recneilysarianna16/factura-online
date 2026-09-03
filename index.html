@@ -45,6 +45,82 @@
       }
     }
 
+    function updatePreviewOnly() {
+      const previewNode = document.getElementById('preview-container');
+      if (!previewNode) return;
+
+      const subtotalUSD = state.items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
+      const discountUSD = (subtotalUSD * (Number(state.discountPercent) || 0)) / 100;
+      const totalUSD = subtotalUSD - discountUSD;
+
+      const rate = Number(state.exchangeRate) || 1;
+      const subtotalVES = subtotalUSD * rate;
+      const discountVES = discountUSD * rate;
+      const totalVES = totalUSD * rate;
+
+      previewNode.innerHTML = `
+        <div id="invoice-node" class="bg-white p-8 rounded shadow-lg w-full max-w-md text-xs space-y-4">
+          <div class="flex justify-between items-start border-b pb-3">
+            <div>
+              ${state.logoUrl ? `<img src="${state.logoUrl}" class="h-12 object-contain mb-1"/>` : `<h1 class="text-lg font-bold text-slate-900">ARI FASHION</h1>`}
+              <p class="text-[10px] text-pink-600 font-medium uppercase tracking-widest">belleza, moda y estilo</p>
+            </div>
+            <div class="text-right">
+              <h2 class="text-sm font-bold text-slate-800">COTIZACIÓN</h2>
+              <p class="text-xs font-semibold text-pink-600">N° ${state.invoiceNumber}</p>
+              <p class="text-[10px] text-slate-500">Fecha: ${state.invoiceDate}</p>
+            </div>
+          </div>
+
+          ${state.clientName ? `
+            <div class="bg-slate-50 p-2.5 rounded text-[11px] space-y-0.5 border border-slate-100">
+              <p><strong>Cliente:</strong> ${state.clientName}</p>
+              ${state.clientDoc ? `<p><strong>RIF/C.I.:</strong> ${state.clientDoc}</p>` : ''}
+              ${state.clientPhone ? `<p><strong>Teléfono:</strong> ${state.clientPhone}</p>` : ''}
+              ${state.clientAddress ? `<p><strong>Dirección:</strong> ${state.clientAddress}</p>` : ''}
+            </div>
+          ` : ''}
+
+          <table class="w-full text-left text-[11px]">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-1">Descripción</th>
+                <th class="py-1 text-center">Cant</th>
+                <th class="py-1 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.items.map(it => `
+                <tr class="border-b border-slate-100">
+                  <td class="py-1.5">
+                    <p class="font-semibold">${it.title || 'Ítem'}</p>
+                    ${it.description ? `<p class="text-[9px] text-slate-400">${it.description}</p>` : ''}
+                  </td>
+                  <td class="py-1.5 text-center">${it.quantity}</td>
+                  <td class="py-1.5 text-right">${renderMoney(it.quantity * it.price, it.quantity * it.price * rate)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="flex justify-end pt-2">
+            <div class="w-1/2 text-right space-y-1">
+              <div class="flex justify-between text-[11px]"><span>Subtotal:</span> ${renderMoney(subtotalUSD, subtotalVES)}</div>
+              ${state.discountPercent > 0 ? `<div class="flex justify-between text-[11px] text-red-600"><span>Desc. (${state.discountPercent}%):</span> -${renderMoney(discountUSD, discountVES)}</div>` : ''}
+              <div class="flex justify-between font-bold text-xs border-t pt-1"><span>TOTAL:</span> ${renderMoney(totalUSD, totalVES)}</div>
+            </div>
+          </div>
+
+          ${state.paymentInfo ? `
+            <div class="border-t pt-2 text-[10px] text-slate-600">
+              <p class="font-bold text-slate-800">Métodos de Pago:</p>
+              <p>${state.paymentInfo}</p>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
     function render() {
       const app = document.getElementById('app');
       
@@ -68,7 +144,7 @@
                 </div>
                 <div class="flex items-center space-x-3 text-xs sm:text-sm">
                   <span class="text-slate-500 font-medium">Tasa BCV: Bs.</span>
-                  <input type="number" step="0.01" value="${state.exchangeRate}" onchange="updateState('exchangeRate', this.value)" class="w-20 border border-slate-200 rounded px-2 py-1 font-semibold text-right" />
+                  <input type="number" step="0.01" value="${state.exchangeRate}" oninput="updateStateNoRender('exchangeRate', this.value)" class="w-20 border border-slate-200 rounded px-2 py-1 font-semibold text-right" />
                   <div class="bg-slate-100 p-1 rounded flex border">
                     <button onclick="setCurrency('USD')" class="px-2 py-1 text-xs font-semibold rounded ${state.currency === 'USD' ? 'bg-white text-pink-600 shadow' : ''}">USD ($)</button>
                     <button onclick="setCurrency('VES')" class="px-2 py-1 text-xs font-semibold rounded ${state.currency === 'VES' ? 'bg-white text-pink-600 shadow' : ''}">Bs. (VES)</button>
@@ -100,16 +176,16 @@
                     <div class="space-y-2">
                       <div>
                         <label class="block font-semibold mb-1">N° Factura / Control</label>
-                        <input type="text" value="${state.invoiceNumber}" oninput="updateState('invoiceNumber', this.value)" class="w-full p-2 border rounded font-semibold" />
+                        <input type="text" value="${state.invoiceNumber}" oninput="updateStateNoRender('invoiceNumber', this.value)" class="w-full p-2 border rounded font-semibold" />
                       </div>
                       <div class="grid grid-cols-2 gap-2">
                         <div>
                           <label class="block text-[10px] font-semibold">Emisión</label>
-                          <input type="date" value="${state.invoiceDate}" onchange="updateState('invoiceDate', this.value)" class="w-full p-1 border rounded" />
+                          <input type="date" value="${state.invoiceDate}" onchange="updateStateNoRender('invoiceDate', this.value)" class="w-full p-1 border rounded" />
                         </div>
                         <div>
                           <label class="block text-[10px] font-semibold">Vencimiento</label>
-                          <input type="date" value="${state.dueDate}" onchange="updateState('dueDate', this.value)" class="w-full p-1 border rounded" />
+                          <input type="date" value="${state.dueDate}" onchange="updateStateNoRender('dueDate', this.value)" class="w-full p-1 border rounded" />
                         </div>
                       </div>
                     </div>
@@ -117,10 +193,10 @@
 
                   <h2 class="text-sm font-bold text-pink-600 uppercase border-b pb-2 pt-2">Datos del Cliente</h2>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <input type="text" placeholder="Nombre / Razón Social" value="${state.clientName}" oninput="updateState('clientName', this.value)" class="w-full p-2 border rounded" />
-                    <input type="text" placeholder="C.I. / RIF" value="${state.clientDoc}" oninput="updateState('clientDoc', this.value)" class="w-full p-2 border rounded" />
-                    <input type="text" placeholder="Teléfono" value="${state.clientPhone}" oninput="updateState('clientPhone', this.value)" class="w-full p-2 border rounded" />
-                    <input type="text" placeholder="Dirección" value="${state.clientAddress}" oninput="updateState('clientAddress', this.value)" class="w-full p-2 border rounded" />
+                    <input type="text" placeholder="Nombre / Razón Social" value="${state.clientName}" oninput="updateStateNoRender('clientName', this.value)" class="w-full p-2 border rounded" />
+                    <input type="text" placeholder="C.I. / RIF" value="${state.clientDoc}" oninput="updateStateNoRender('clientDoc', this.value)" class="w-full p-2 border rounded" />
+                    <input type="text" placeholder="Teléfono" value="${state.clientPhone}" oninput="updateStateNoRender('clientPhone', this.value)" class="w-full p-2 border rounded" />
+                    <input type="text" placeholder="Dirección" value="${state.clientAddress}" oninput="updateStateNoRender('clientAddress', this.value)" class="w-full p-2 border rounded" />
                   </div>
 
                   <div class="flex justify-between items-center border-b pb-1 pt-2">
@@ -131,11 +207,11 @@
                   <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
                     ${state.items.map((item, idx) => `
                       <div class="p-3 bg-slate-50 border rounded text-xs space-y-2">
-                        <input type="text" placeholder="Producto / Servicio" value="${item.title}" oninput="updateItem(${idx}, 'title', this.value)" class="w-full p-1.5 border rounded font-medium" />
-                        <input type="text" placeholder="Descripción adicional" value="${item.description}" oninput="updateItem(${idx}, 'description', this.value)" class="w-full p-1 border rounded text-[11px]" />
+                        <input type="text" placeholder="Producto / Servicio" value="${item.title}" oninput="updateItemNoRender(${idx}, 'title', this.value)" class="w-full p-1.5 border rounded font-medium" />
+                        <input type="text" placeholder="Descripción adicional" value="${item.description}" oninput="updateItemNoRender(${idx}, 'description', this.value)" class="w-full p-1 border rounded text-[11px]" />
                         <div class="flex gap-2">
-                          <input type="number" placeholder="Cant" value="${item.quantity}" oninput="updateItem(${idx}, 'quantity', this.value)" class="w-1/2 p-1 border rounded" />
-                          <input type="number" placeholder="Precio ($)" value="${item.price}" oninput="updateItem(${idx}, 'price', this.value)" class="w-1/2 p-1 border rounded" />
+                          <input type="number" placeholder="Cant" value="${item.quantity}" oninput="updateItemNoRender(${idx}, 'quantity', this.value)" class="w-1/2 p-1 border rounded" />
+                          <input type="number" placeholder="Precio ($)" value="${item.price}" oninput="updateItemNoRender(${idx}, 'price', this.value)" class="w-1/2 p-1 border rounded" />
                         </div>
                         ${state.items.length > 1 ? `<button onclick="removeItem(${idx})" class="text-red-500 text-[11px]">Eliminar Ítem</button>` : ''}
                       </div>
@@ -145,11 +221,11 @@
                   <div class="border-t pt-2 grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <label class="block font-semibold mb-1">Descuento (%)</label>
-                      <input type="number" value="${state.discountPercent}" oninput="updateState('discountPercent', this.value)" class="w-full p-2 border rounded" />
+                      <input type="number" value="${state.discountPercent}" oninput="updateStateNoRender('discountPercent', this.value)" class="w-full p-2 border rounded" />
                     </div>
                     <div>
                       <label class="block font-semibold mb-1">Datos de Pago / Banco</label>
-                      <input type="text" placeholder="Ej: Pago Móvil / Zelle" value="${state.paymentInfo}" oninput="updateState('paymentInfo', this.value)" class="w-full p-2 border rounded" />
+                      <input type="text" placeholder="Ej: Pago Móvil / Zelle" value="${state.paymentInfo}" oninput="updateStateNoRender('paymentInfo', this.value)" class="w-full p-2 border rounded" />
                     </div>
                   </div>
 
@@ -159,66 +235,7 @@
                 </div>
 
                 <!-- VISTA PREVIA LATERAL -->
-                <div class="lg:col-span-6 bg-slate-200 p-4 rounded-xl flex justify-center items-start overflow-auto">
-                  <div id="invoice-node" class="bg-white p-8 rounded shadow-lg w-full max-w-md text-xs space-y-4">
-                    <div class="flex justify-between items-start border-b pb-3">
-                      <div>
-                        ${state.logoUrl ? `<img src="${state.logoUrl}" class="h-12 object-contain mb-1"/>` : `<h1 class="text-lg font-bold text-slate-900">ARI FASHION</h1>`}
-                        <p class="text-[10px] text-pink-600 font-medium uppercase tracking-widest">belleza, moda y estilo</p>
-                      </div>
-                      <div class="text-right">
-                        <h2 class="text-sm font-bold text-slate-800">COTIZACIÓN</h2>
-                        <p class="text-xs font-semibold text-pink-600">N° ${state.invoiceNumber}</p>
-                        <p class="text-[10px] text-slate-500">Fecha: ${state.invoiceDate}</p>
-                      </div>
-                    </div>
-
-                    ${state.clientName ? `
-                      <div class="bg-slate-50 p-2.5 rounded text-[11px] space-y-0.5 border border-slate-100">
-                        <p><strong>Cliente:</strong> ${state.clientName}</p>
-                        ${state.clientDoc ? `<p><strong>RIF/C.I.:</strong> ${state.clientDoc}</p>` : ''}
-                        ${state.clientPhone ? `<p><strong>Teléfono:</strong> ${state.clientPhone}</p>` : ''}
-                        ${state.clientAddress ? `<p><strong>Dirección:</strong> ${state.clientAddress}</p>` : ''}
-                      </div>
-                    ` : ''}
-
-                    <table class="w-full text-left text-[11px]">
-                      <thead>
-                        <tr class="border-b border-slate-200 text-slate-500">
-                          <th class="py-1">Descripción</th>
-                          <th class="py-1 text-center">Cant</th>
-                          <th className="py-1 text-right">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${state.items.map(it => `
-                          <tr class="border-b border-slate-100">
-                            <td class="py-1.5">
-                              <p class="font-semibold">${it.title || 'Ítem'}</p>
-                              ${it.description ? `<p class="text-[9px] text-slate-400">${it.description}</p>` : ''}
-                            </td>
-                            <td class="py-1.5 text-center">${it.quantity}</td>
-                            <td class="py-1.5 text-right">${renderMoney(it.quantity * it.price, it.quantity * it.price * rate)}</td>
-                          </tr>
-                        `).join('')}
-                      </tbody>
-                    </table>
-
-                    <div class="flex justify-end pt-2">
-                      <div class="w-1/2 text-right space-y-1">
-                        <div class="flex justify-between text-[11px]"><span>Subtotal:</span> ${renderMoney(subtotalUSD, subtotalVES)}</div>
-                        ${state.discountPercent > 0 ? `<div class="flex justify-between text-[11px] text-red-600"><span>Desc. (${state.discountPercent}%):</span> -${renderMoney(discountUSD, discountVES)}</div>` : ''}
-                        <div class="flex justify-between font-bold text-xs border-t pt-1"><span>TOTAL:</span> ${renderMoney(totalUSD, totalVES)}</div>
-                      </div>
-                    </div>
-
-                    ${state.paymentInfo ? `
-                      <div class="border-t pt-2 text-[10px] text-slate-600">
-                        <p class="font-bold text-slate-800">Métodos de Pago:</p>
-                        <p>${state.paymentInfo}</p>
-                      </div>
-                    ` : ''}
-                  </div>
+                <div id="preview-container" class="lg:col-span-6 bg-slate-200 p-4 rounded-xl flex justify-center items-start overflow-auto">
                 </div>
               </div>
             ` : `
@@ -291,10 +308,23 @@
           </main>
         </div>
       `;
+
+      if (!state.isPreview) {
+        updatePreviewOnly();
+      }
     }
 
-    // HANDLERS
-    function updateState(key, val) { state[key] = val; render(); }
+    // HANDLERS OPTIMIZADOS PARA NO PERDER EL FOCO
+    function updateStateNoRender(key, val) { 
+      state[key] = val; 
+      updatePreviewOnly();
+    }
+    
+    function updateItemNoRender(idx, key, val) {
+      state.items[idx][key] = val;
+      updatePreviewOnly();
+    }
+
     function setCurrency(curr) { state.currency = curr; render(); }
     function togglePreview(val) { state.isPreview = val; render(); }
     
@@ -310,16 +340,11 @@
       }
     }
 
-    function updateItem(idx, key, val) {
-      state.items[idx][key] = val;
-      render();
-    }
-
     function handleLogo(e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onloadend = () => { state.logoUrl = reader.result; render(); };
+        reader.onloadend = () => { state.logoUrl = reader.result; updatePreviewOnly(); };
         reader.readAsDataURL(file);
       }
     }
@@ -333,11 +358,4 @@
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, 0);
-      pdf.save(`Factura_Ari_Fashion_${state.invoiceNumber || 'SN'}.pdf`);
-    }
-
-    // Inicializar app
-    render();
-  </script>
-</body>
-</html>
+      pdf.save(`Factura_Ari_Fashion_${state.invoiceNumber |
