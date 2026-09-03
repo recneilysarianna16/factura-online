@@ -1,274 +1,1014 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ARI FASHION - Cotizaciones</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ari Fashion - Generador de Facturas Multi-Navegador</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            serif: ['Playfair Display', 'Georgia', 'serif']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Google Fonts con display=swap para carga diferida garantizada -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- HTML2Canvas y jsPDF con compatibilidad de fallbacks -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f1f5f9; color: #334155; margin: 0; padding: 0; }
-    .header { background: #ffffff; padding: 16px; border-bottom: 2px solid #fbcfe8; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-    .title { font-size: 20px; font-weight: bold; color: #0f172a; margin: 0; }
-    .subtitle { font-size: 11px; color: #db2777; text-transform: uppercase; letter-spacing: 1px; }
-    .top-controls { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-    .input-sm { padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; width: 80px; text-align: right; }
-    .btn-toggle { padding: 4px 10px; font-size: 12px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; border-radius: 4px; }
-    .btn-toggle.active { background: #db2777; color: white; border-color: #db2777; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
     
-    .container { max-width: 1200px; margin: 20px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr; gap: 20px; }
-    @media (min-width: 900px) { .container { grid-template-columns: 1fr 1fr; } }
-    
-    .card { background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .section-title { font-size: 13px; font-weight: bold; color: #db2777; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 12px; }
-    .form-group { margin-bottom: 10px; }
-    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-    .input-text { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    
-    .item-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
-    .btn-add { background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
-    .btn-main { background: #db2777; color: white; width: 100%; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
-    .btn-main:hover { background: #be185d; }
-    
-    /* Documento Factura */
-    .invoice { background: white; padding: 24px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; }
-    .inv-header { display: flex; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px; }
-    .inv-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-    .inv-table th, .inv-table td { padding: 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-    .inv-table th { color: #64748b; font-size: 11px; border-bottom: 2px solid #e2e8f0; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
-    
+    /* Garantizar que el canvas no rompa en impresoras o visores PDF */
     @media print {
-      body * { visibility: hidden; }
-      #invoice-document, #invoice-document * { visibility: visible; }
-      #invoice-document { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; }
-      .no-print { display: none !important; }
+      body {
+        background-color: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-area {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 2.5rem !important;
+      }
+      @page {
+        size: A4;
+        margin: 0;
+      }
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-800 antialiased selection:bg-pink-500 selection:text-white min-h-screen">
 
-  <header class="header no-print">
-    <div>
-      <h1 class="title">ARI FASHION</h1>
-      <span class="subtitle">belleza, moda y estilo</span>
-    </div>
-    <div class="top-controls">
-      <span>Tasa BCV: Bs.</span>
-      <input type="number" step="0.01" id="exchangeRate" class="input-sm" value="56.50" oninput="updateState('exchangeRate', this.value)" />
-      <div>
-        <button id="btn-usd" class="btn-toggle active" onclick="setCurrency('USD')">USD ($)</button>
-        <button id="btn-ves" class="btn-toggle" onclick="setCurrency('VES')">Bs. (VES)</button>
-      </div>
-    </div>
-  </header>
+  <div id="root"></div>
 
-  <div class="container no-print">
-    <!-- FORMULARIO -->
-    <div class="card">
-      <div class="section-title">Datos Generales</div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>N° Cotización</label>
-          <input type="text" id="invoiceNumber" class="input-text" value="0001" oninput="updateState('invoiceNumber', this.value)" />
-        </div>
-        <div class="form-group">
-          <label>Fecha</label>
-          <input type="date" id="invoiceDate" class="input-text" onchange="updateState('invoiceDate', this.value)" />
-        </div>
-      </div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
 
-      <div class="section-title" style="margin-top: 15px;">Datos del Cliente</div>
-      <div class="grid-2">
-        <div class="form-group"><input type="text" placeholder="Nombre / Razón Social" class="input-text" oninput="updateState('clientName', this.value)" /></div>
-        <div class="form-group"><input type="text" placeholder="RIF / C.I." class="input-text" oninput="updateState('clientDoc', this.value)" /></div>
-        <div class="form-group"><input type="text" placeholder="Teléfono" class="input-text" oninput="updateState('clientPhone', this.value)" /></div>
-        <div class="form-group"><input type="text" placeholder="Dirección" class="input-text" oninput="updateState('clientAddress', this.value)" /></div>
-      </div>
+    // --- ÍCONOS SVG COMPATIBLES SIN DEPENDENCIAS EXTERNAS ---
+    const IconSparkles = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+      </svg>
+    );
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-        <div class="section-title" style="margin: 0;">Ítems</div>
-        <button class="btn-add" onclick="addItem()">+ Agregar Ítem</button>
-      </div>
-      <div id="items-list" style="margin-top: 10px;"></div>
+    const IconPlus = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+    );
 
-      <div class="grid-2" style="margin-top: 10px;">
-        <div class="form-group">
-          <label>Descuento (%)</label>
-          <input type="number" class="input-text" value="0" oninput="updateState('discountPercent', this.value)" />
-        </div>
-        <div class="form-group">
-          <label>Datos de Pago</label>
-          <input type="text" placeholder="Ej: Pago Móvil / Banco" class="input-text" oninput="updateState('paymentInfo', this.value)" />
-        </div>
-      </div>
+    const IconTrash = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+      </svg>
+    );
 
-      <button class="btn-main" onclick="window.print()">Imprimir / Guardar en PDF</button>
-    </div>
+    const IconEye = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+      </svg>
+    );
 
-    <!-- VISTA PREVIA -->
-    <div>
-      <div id="invoice-document" class="invoice"></div>
-    </div>
-  </div>
+    const IconDownload = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+      </svg>
+    );
 
-  <script>
-    const state = {
-      currency: 'USD',
-      exchangeRate: 56.50,
-      invoiceNumber: '0001',
-      invoiceDate: new Date().toISOString().split('T')[0],
-      clientName: '',
-      clientDoc: '',
-      clientPhone: '',
-      clientAddress: '',
-      items: [{ id: 1, title: '', description: '', quantity: 1, price: 0 }],
-      discountPercent: 0,
-      paymentInfo: ''
-    };
+    const IconFileText = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+    );
 
-    document.getElementById('invoiceDate').value = state.invoiceDate;
+    const IconCheckCircle = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+    );
 
-    function formatMoney(usd, ves) {
-      const u = `$ ${Number(usd || 0).toFixed(2)}`;
-      const v = `Bs. ${Number(ves || 0).toFixed(2)}`;
-      if (state.currency === 'USD') {
-        return `<strong>${u}</strong><br><span style="color:#64748b; font-size:10px;">Eqv: ${v}</span>`;
-      } else {
-        return `<strong>${v}</strong><br><span style="color:#64748b; font-size:10px;">Eqv: ${u}</span>`;
-      }
-    }
+    const IconBuilding = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+      </svg>
+    );
 
-    function renderItemsForm() {
-      const container = document.getElementById('items-list');
-      container.innerHTML = state.items.map((item, index) => `
-        <div class="item-box">
-          <input type="text" placeholder="Producto o Servicio" class="input-text" style="margin-bottom: 4px;" value="${item.title}" oninput="updateItem(${index}, 'title', this.value)" />
-          <input type="text" placeholder="Descripción breve" class="input-text" style="margin-bottom: 6px; font-size: 11px;" value="${item.description}" oninput="updateItem(${index}, 'description', this.value)" />
-          <div class="grid-2">
-            <input type="number" placeholder="Cant" class="input-text" value="${item.quantity}" oninput="updateItem(${index}, 'quantity', this.value)" />
-            <input type="number" placeholder="Precio ($)" class="input-text" value="${item.price}" oninput="updateItem(${index}, 'price', this.value)" />
-          </div>
-          ${state.items.length > 1 ? `<div style="text-align:right; margin-top:4px;"><a href="#" onclick="removeItem(${index})" style="color:#ef4444; font-size:11px; text-decoration:none;">Eliminar</a></div>` : ''}
-        </div>
-      `).join('');
-    }
+    const IconUser = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+      </svg>
+    );
 
-    function renderPreview() {
-      const doc = document.getElementById('invoice-document');
-      const rate = Number(state.exchangeRate) || 1;
-      
-      const subtotalUSD = state.items.reduce((s, i) => s + (Number(i.quantity) * Number(i.price) || 0), 0);
-      const discountUSD = (subtotalUSD * (Number(state.discountPercent) || 0)) / 100;
+    const IconCreditCard = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+      </svg>
+    );
+
+    const IconX = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    );
+
+    function App() {
+      const [isPreview, setIsPreview] = useState(false);
+      const [currency, setCurrency] = useState('USD');
+      const [exchangeRate, setExchangeRate] = useState(56.50);
+      const [isExporting, setIsExporting] = useState(false);
+      const [exportMessage, setExportMessage] = useState('');
+
+      // Datos Factura
+      const [logoUrl, setLogoUrl] = useState('');
+      const [invoiceNumber, setInvoiceNumber] = useState('0001');
+      const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+      const [dueDate, setDueDate] = useState('');
+
+      // Datos Cliente
+      const [clientName, setClientName] = useState('');
+      const [clientDoc, setClientDoc] = useState('');
+      const [clientPhone, setClientPhone] = useState('');
+      const [clientAddress, setClientAddress] = useState('');
+
+      // Productos
+      const [items, setItems] = useState([
+        { id: 1, title: '', description: '', quantity: 1, price: 0 }
+      ]);
+
+      // Finanzas
+      const [discountPercent, setDiscountPercent] = useState(0);
+      const [notes, setNotes] = useState('');
+      const [paymentInfo, setPaymentInfo] = useState('');
+
+      const invoiceRef = useRef(null);
+
+      const calculateSubtotalUSD = () => {
+        return items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
+      };
+
+      const subtotalUSD = calculateSubtotalUSD();
+      const discountUSD = (subtotalUSD * (Number(discountPercent) || 0)) / 100;
       const totalUSD = subtotalUSD - discountUSD;
 
-      doc.innerHTML = `
-        <div class="inv-header">
-          <div>
-            <h1 style="margin:0; font-size:18px; color:#0f172a;">ARI FASHION</h1>
-            <div style="color:#db2777; font-size:10px; font-weight:bold; letter-spacing:1px;">BELLEZA, MODA Y ESTILO</div>
-          </div>
-          <div class="text-right">
-            <h3 style="margin:0; font-size:14px;">COTIZACIÓN</h3>
-            <div style="color:#db2777; font-weight:bold;">N° ${state.invoiceNumber}</div>
-            <div style="color:#64748b; font-size:10px;">Fecha: ${state.invoiceDate}</div>
-          </div>
-        </div>
+      const rate = Number(exchangeRate) || 1;
+      const subtotalVES = subtotalUSD * rate;
+      const discountVES = discountUSD * rate;
+      const totalVES = totalUSD * rate;
 
-        ${state.clientName ? `
-          <div style="background:#f8fafc; padding:10px; border-radius:4px; margin-bottom:12px; font-size:11px;">
-            <div><strong>Cliente:</strong> ${state.clientName}</div>
-            ${state.clientDoc ? `<div><strong>RIF/C.I.:</strong> ${state.clientDoc}</div>` : ''}
-            ${state.clientPhone ? `<div><strong>Teléfono:</strong> ${state.clientPhone}</div>` : ''}
-            ${state.clientAddress ? `<div><strong>Dirección:</strong> ${state.clientAddress}</div>` : ''}
-          </div>
-        ` : ''}
+      // Gestores de ítems
+      const handleAddItem = () => {
+        setItems([...items, { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }]);
+      };
 
-        <table class="inv-table">
-          <thead>
-            <tr>
-              <th>Descripción</th>
-              <th class="text-center">Cant</th>
-              <th class="text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${state.items.map(it => {
-              const rowTotUSD = Number(it.quantity) * Number(it.price) || 0;
-              return `
-                <tr>
-                  <td>
-                    <strong>${it.title || 'Ítem'}</strong>
-                    ${it.description ? `<br><span style="color:#64748b; font-size:10px;">${it.description}</span>` : ''}
-                  </td>
-                  <td class="text-center">${it.quantity}</td>
-                  <td class="text-right">${formatMoney(rowTotUSD, rowTotUSD * rate)}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
+      const handleRemoveItem = (id) => {
+        if (items.length === 1) return;
+        setItems(items.filter(item => item.id !== id));
+      };
 
-        <div style="display:flex; justify-content:flex-end; margin-top:15px;">
-          <div style="width:200px;" class="text-right">
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-              <span>Subtotal:</span>
-              <span>${formatMoney(subtotalUSD, subtotalUSD * rate)}</span>
+      const handleItemChange = (id, field, value) => {
+        setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+      };
+
+      // Carga de Logo Local
+      const handleLogoUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => setLogoUrl(reader.result);
+          reader.readAsDataURL(file);
+        }
+      };
+
+      // Formateadores monetarios
+      const formatUSD = (val) => `$ ${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const formatVES = (val) => `Bs. ${Number(val).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const renderMoney = (amountUSD, amountVES) => {
+        if (currency === 'USD') {
+          return (
+            <div>
+              <span className="font-bold">{formatUSD(amountUSD)}</span>
+              <div className="text-[10px] text-slate-500 font-normal">Eqv: {formatVES(amountVES)}</div>
             </div>
-            ${state.discountPercent > 0 ? `
-              <div style="display:flex; justify-content:space-between; color:#ef4444; margin-bottom:4px;">
-                <span>Desc (${state.discountPercent}%):</span>
-                <span>-${formatMoney(discountUSD, discountUSD * rate)}</span>
+          );
+        } else {
+          return (
+            <div>
+              <span className="font-bold">{formatVES(amountVES)}</span>
+              <div className="text-[10px] text-slate-500 font-normal">Eqv: {formatUSD(amountUSD)}</div>
+            </div>
+          );
+        }
+      };
+
+      const prepareCanvasExport = async () => {
+        if (!invoiceRef.current) return null;
+
+        // 1. Esperar a que las fuentes web estén listas
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        // 2. Ajuste adaptativo de escala según dispositivo para evitar cierres por memoria en iOS
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const scale = isMobile ? 2 : 2.5;
+
+        // 3. Capturar el Canvas (allowTaint deshabilitado para evitar bloquoe de seguridad en toDataURL)
+        const canvas = await window.html2canvas(invoiceRef.current, {
+          scale: scale,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#ffffff',
+          logging: false
+        });
+
+        return canvas;
+      };
+
+      const exportAsImage = async () => {
+        setIsExporting(true);
+        setExportMessage('Generando imagen...');
+        try {
+          const canvas = await prepareCanvasExport();
+          if (!canvas) return;
+
+          const imageUri = canvas.toDataURL('image/png', 1.0);
+          const fileName = `Factura_Ari_Fashion_${invoiceNumber || 'SN'}.png`;
+
+          // Método de descarga robusto compatible con Safari/iOS y Android
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = imageUri;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (err) {
+          console.error('Error al exportar imagen:', err);
+          alert('Hubo un inconveniente al generar la imagen. Intenta desde la vista previa.');
+        } finally {
+          setIsExporting(false);
+          setExportMessage('');
+        }
+      };
+
+      const exportAsPDF = async () => {
+        setIsExporting(true);
+        setExportMessage('Generando PDF...');
+        try {
+          const canvas = await prepareCanvasExport();
+          if (!canvas) return;
+
+          const imgData = canvas.toDataURL('image/png');
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pdf.save(`Factura_Ari_Fashion_${invoiceNumber || 'SN'}.pdf`);
+        } catch (err) {
+          console.error('Error al exportar PDF:', err);
+          alert('Error al generar PDF. Asegúrate de tener una conexión estable.');
+        } finally {
+          setIsExporting(false);
+          setExportMessage('');
+        }
+      };
+
+      return (
+        <div className="min-h-screen">
+          {/* ENCABEZADO DE MARCA */}
+          {!isPreview && (
+            <header className="no-print bg-white border-b border-pink-100 shadow-sm sticky top-0 z-30">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-white shadow-md shadow-pink-200">
+                    <IconSparkles />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold tracking-wider text-slate-900 font-serif leading-none">
+                      ARI FASHION
+                    </h1>
+                    <p className="text-xs text-pink-600 font-medium tracking-widest uppercase">
+                      belleza, moda y estilo
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 text-xs sm:text-sm">
+                  <span className="text-slate-500 font-medium hidden md:inline">
+                    Tasa BCV / Ref:
+                  </span>
+                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 space-x-1 focus-within:ring-2 focus-within:ring-pink-500">
+                    <span className="text-slate-400 font-semibold">Bs.</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={exchangeRate}
+                      onChange={(e) => setExchangeRate(e.target.value)}
+                      placeholder="56.50"
+                      className="w-20 bg-transparent text-slate-800 font-semibold focus:outline-none text-right"
+                    />
+                  </div>
+
+                  <div className="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200">
+                    <button
+                      onClick={() => setCurrency('USD')}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                        currency === 'USD' ? 'bg-white text-pink-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      USD ($)
+                    </button>
+                    <button
+                      onClick={() => setCurrency('VES')}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                        currency === 'VES' ? 'bg-white text-pink-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Bs. (VES)
+                    </button>
+                  </div>
+                </div>
               </div>
-            ` : ''}
-            <div style="display:flex; justify-content:space-between; font-weight:bold; border-top:1px solid #cbd5e1; padding-top:4px; font-size:13px;">
-              <span>TOTAL:</span>
-              <span>${formatMoney(totalUSD, totalUSD * rate)}</span>
+            </header>
+          )}
+
+          {}
+          {isPreview && (
+            <div className="no-print bg-slate-900 text-white sticky top-0 z-50 px-4 py-3 shadow-xl border-b border-slate-800">
+              <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+                <div className="flex items-center space-x-2 text-sm text-slate-300">
+                  <IconCheckCircle className="text-pink-400 shrink-0" />
+                  <span>
+                    <strong>{isExporting ? exportMessage : 'Vista Previa Lista.'}</strong> Usa los botones para descargar.
+                  </span>
+                </div>
+
+                <div className="flex items-center flex-wrap gap-2">
+                  <button
+                    onClick={exportAsImage}
+                    disabled={isExporting}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-medium rounded-lg text-slate-200 flex items-center space-x-1.5 transition border border-slate-700"
+                  >
+                    <IconDownload className="text-pink-400" />
+                    <span>Descargar Imagen</span>
+                  </button>
+
+                  <button
+                    onClick={exportAsPDF}
+                    disabled={isExporting}
+                    className="px-3.5 py-2 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-xs font-medium rounded-lg text-white flex items-center space-x-1.5 transition shadow-sm"
+                  >
+                    <IconFileText />
+                    <span>Descargar PDF</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsPreview(false)}
+                    className="px-3 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-medium rounded-lg flex items-center space-x-1 border border-rose-500/30 transition ml-2"
+                  >
+                    <IconX />
+                    <span>Volver a Editar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {}
+          <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6">
+            {isPreview ? (
+              <div className="flex justify-center py-6">
+                <div className="w-full max-w-[800px] transition-all duration-300">
+                  <InvoiceDocument
+                    ref={invoiceRef}
+                    logoUrl={logoUrl}
+                    invoiceNumber={invoiceNumber}
+                    invoiceDate={invoiceDate}
+                    dueDate={dueDate}
+                    clientName={clientName}
+                    clientDoc={clientDoc}
+                    clientPhone={clientPhone}
+                    clientAddress={clientAddress}
+                    items={items}
+                    discountPercent={discountPercent}
+                    notes={notes}
+                    paymentInfo={paymentInfo}
+                    currency={currency}
+                    exchangeRate={exchangeRate}
+                    subtotalUSD={subtotalUSD}
+                    discountUSD={discountUSD}
+                    totalUSD={totalUSD}
+                    subtotalVES={subtotalVES}
+                    discountVES={discountVES}
+                    totalVES={totalVES}
+                    renderMoney={renderMoney}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-24">
+                
+                {/* FORMULARIO DE EDICIÓN */}
+                <div className="lg:col-span-6 space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm no-print">
+                  
+                  {/* Configuración general */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
+                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
+                      <IconBuilding />
+                      <span>Configuración General</span>
+                    </h2>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Logo Corporativo
+                        </label>
+                        <div className="space-y-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 cursor-pointer"
+                          />
+                          <input
+                            type="url"
+                            placeholder="O pega URL del logo..."
+                            value={logoUrl.startsWith('data:') ? '' : logoUrl}
+                            onChange={(e) => setLogoUrl(e.target.value)}
+                            className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            N° Factura / Control
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ej: N° 0001"
+                            value={invoiceNumber}
+                            onChange={(e) => setInvoiceNumber(e.target.value)}
+                            className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none font-semibold"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Fecha Emisión
+                            </label>
+                            <input
+                              type="date"
+                              value={invoiceDate}
+                              onChange={(e) => setInvoiceDate(e.target.value)}
+                              className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Vencimiento
+                            </label>
+                            <input
+                              type="date"
+                              value={dueDate}
+                              onChange={(e) => setDueDate(e.target.value)}
+                              className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Datos del Cliente */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
+                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
+                      <IconUser />
+                      <span>Datos del Cliente</span>
+                    </h2>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Nombre / Razón Social
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: María Delgado"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          C.I. / RIF
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: V-12345678"
+                          value={clientDoc}
+                          onChange={(e) => setClientDoc(e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Teléfono
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: +58 412 1234567"
+                          value={clientPhone}
+                          onChange={(e) => setClientPhone(e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Dirección
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: Barquisimeto, Lara"
+                          value={clientAddress}
+                          onChange={(e) => setClientAddress(e.target.value)}
+                          className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ítems */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
+                        <IconFileText />
+                        <span>Productos / Servicios</span>
+                      </h2>
+                      <button
+                        onClick={handleAddItem}
+                        className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 font-semibold text-xs rounded-lg transition flex items-center space-x-1 border border-pink-200"
+                      >
+                        <IconPlus />
+                        <span>Agregar Ítem</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {items.map((item, index) => (
+                        <div key={item.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg relative group transition hover:border-pink-300 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-[10px] font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded">
+                              #{index + 1}
+                            </span>
+                            {items.length > 1 && (
+                              <button onClick={() => handleRemoveItem(item.id)} className="text-slate-400 hover:text-rose-500 transition p-1">
+                                <IconTrash />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                            <div className="sm:col-span-7">
+                              <input
+                                type="text"
+                                placeholder="Producto (Ej: Vestido Gala Silk)"
+                                value={item.title}
+                                onChange={(e) => handleItemChange(item.id, 'title', e.target.value)}
+                                className="w-full text-xs font-semibold px-2 py-1.5 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none"
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Cant."
+                                value={item.quantity || ''}
+                                onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                                className="w-full text-xs text-center px-2 py-1.5 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none"
+                              />
+                            </div>
+                            <div className="sm:col-span-3">
+                              <div className="relative">
+                                <span className="absolute left-2 top-1.5 text-xs text-slate-400">$</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Precio ($)"
+                                  value={item.price || ''}
+                                  onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
+                                  className="w-full text-xs pl-5 pr-2 py-1.5 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none font-semibold text-right"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <input
+                            type="text"
+                            placeholder="Descripción opcional (Ej: Talla M / Color Rosa)"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                            className="w-full text-[11px] text-slate-600 px-2 py-1 bg-white border border-slate-200 rounded focus:ring-1 focus:ring-pink-500 outline-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-600">
+                        Descuento Especial (%):
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value={discountPercent || ''}
+                        onChange={(e) => setDiscountPercent(e.target.value)}
+                        className="w-20 text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded text-right font-semibold focus:ring-1 focus:ring-pink-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Finanzas */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
+                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 text-pink-600">
+                      <IconCreditCard />
+                      <span>Pago, Cuentas & Notas</span>
+                    </h2>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Métodos de Pago / Datos Bancarios
+                      </label>
+                      <textarea
+                        rows="3"
+                        placeholder="Ej: Pago Móvil Banco Mercantil | Banesco | Zelle: pagos@arifashion.com"
+                        value={paymentInfo}
+                        onChange={(e) => setPaymentInfo(e.target.value)}
+                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                      ></textarea>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Notas Adicionales
+                      </label>
+                      <textarea
+                        rows="2"
+                        placeholder="Ej: Gracias por tu compra. Cambios válidos por 7 días con etiqueta intacta."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:bg-white outline-none"
+                      ></textarea>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* VISTA PREVIA EN VIVO */}
+                <div className="lg:col-span-6 bg-slate-900 p-4 sm:p-6 rounded-2xl flex flex-col items-center justify-start min-h-[600px] border border-slate-800 shadow-inner no-print overflow-x-auto">
+                  <div className="w-full max-w-[550px] mb-3 flex items-center justify-between text-slate-400 text-xs">
+                    <span className="flex items-center space-x-1.5 font-medium">
+                      <IconEye className="text-pink-400" />
+                      <span>Vista Previa en Vivo (A4)</span>
+                    </span>
+                    <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">
+                      Auto-actualizable
+                    </span>
+                  </div>
+
+                  <div className="w-full max-w-[550px] bg-white rounded-xl shadow-2xl overflow-hidden transform transition-all border border-slate-700">
+                    <InvoiceDocument
+                      logoUrl={logoUrl}
+                      invoiceNumber={invoiceNumber}
+                      invoiceDate={invoiceDate}
+                      dueDate={dueDate}
+                      clientName={clientName}
+                      clientDoc={clientDoc}
+                      clientPhone={clientPhone}
+                      clientAddress={clientAddress}
+                      items={items}
+                      discountPercent={discountPercent}
+                      notes={notes}
+                      paymentInfo={paymentInfo}
+                      currency={currency}
+                      exchangeRate={exchangeRate}
+                      subtotalUSD={subtotalUSD}
+                      discountUSD={discountUSD}
+                      totalUSD={totalUSD}
+                      subtotalVES={subtotalVES}
+                      discountVES={discountVES}
+                      totalVES={totalVES}
+                      renderMoney={renderMoney}
+                      isMiniature={true}
+                    />
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </main>
+
+          {/* BARRA INFERIOR DE ACCIÓN */}
+          {!isPreview && (
+            <div className="no-print fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 shadow-2xl z-40">
+              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] text-slate-500 uppercase tracking-wider font-bold block">
+                    Total Factura:
+                  </span>
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-xl font-black text-slate-900">
+                      {formatUSD(totalUSD)}
+                    </span>
+                    <span className="text-xs text-pink-600 font-semibold">
+                      ({formatVES(totalVES)})
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsPreview(true)}
+                  className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-pink-200 transition-all transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
+                >
+                  <IconEye className="w-4 h-4" />
+                  <span>👁️ Ver Vista Previa para Descargar</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const InvoiceDocument = React.forwardRef(({
+      logoUrl,
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      clientName,
+      clientDoc,
+      clientPhone,
+      clientAddress,
+      items,
+      discountPercent,
+      notes,
+      paymentInfo,
+      currency,
+      exchangeRate,
+      subtotalUSD,
+      discountUSD,
+      totalUSD,
+      subtotalVES,
+      discountVES,
+      totalVES,
+      renderMoney,
+      isMiniature = false
+    }, ref) => {
+      return (
+        <div
+          ref={ref}
+          className={`print-area bg-white text-slate-800 font-sans mx-auto relative ${
+            isMiniature ? 'p-6 text-[11px]' : 'p-10 md:p-12 text-xs max-w-[800px] rounded-3xl shadow-xl border border-slate-100'
+          }`}
+          style={{ minHeight: isMiniature ? 'auto' : '1050px' }}
+        >
+          <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-pink-400 via-rose-500 to-pink-300 rounded-t-3xl no-print" />
+
+          {/* Encabezado */}
+          <div className="flex flex-row justify-between items-start pb-8 border-b border-slate-100 gap-4 mt-2">
+            <div className="space-y-2 max-w-[60%]">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Ari Fashion Logo"
+                  className="h-14 w-auto object-contain mb-1"
+                  crossOrigin="anonymous"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white font-bold text-base">
+                    A
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-black tracking-widest text-slate-900 font-serif leading-none">
+                      ARI FASHION
+                    </h1>
+                    <p className="text-[10px] text-pink-600 font-bold tracking-widest uppercase">
+                      belleza, moda y estilo
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-[10px] text-slate-500 leading-relaxed font-light">
+                Venta de Ropa, Calzado y Accesorios de Moda.<br />
+                Envíos a nivel nacional & Atención personalizada.
+              </p>
+            </div>
+
+            <div className="text-right space-y-1">
+              <div className="inline-block bg-pink-50 text-pink-700 px-3 py-1 rounded-full font-bold text-sm tracking-wider uppercase mb-2">
+                FACTURA
+              </div>
+              <div className="text-slate-900 font-mono font-bold text-base">
+                #{invoiceNumber || '0001'}
+              </div>
+              <div className="text-slate-500 text-[11px]">
+                <strong>Emisión:</strong> {invoiceDate || 'N/A'}
+              </div>
+              {dueDate && (
+                <div className="text-slate-500 text-[11px]">
+                  <strong>Vencimiento:</strong> {dueDate}
+                </div>
+              )}
+              <div className="text-[10px] text-slate-400 pt-1">
+                Tasa Ref: Bs. {Number(exchangeRate).toFixed(2)} / USD
+              </div>
             </div>
           </div>
-        </div>
 
-        ${state.paymentInfo ? `
-          <div style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:10px; font-size:10px; color:#475569;">
-            <strong>Métodos de Pago:</strong><br>${state.paymentInfo}
+          {/* Datos del Cliente */}
+          <div className="py-6 border-b border-slate-100">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-pink-600 mb-2">
+              Facturado a:
+            </h3>
+            <div className="grid grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+              <div>
+                <p className="font-bold text-slate-900 text-sm">
+                  {clientName || 'Nombre del Cliente'}
+                </p>
+                <p className="text-slate-600 mt-0.5">
+                  {clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: Sin especificar'}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-slate-600">
+                  {clientPhone || 'Teléfono no registrado'}
+                </p>
+                <p className="text-slate-500 truncate mt-0.5">
+                  {clientAddress || 'Dirección de entrega'}
+                </p>
+              </div>
+            </div>
           </div>
-        ` : ''}
-      `;
-    }
 
-    function updateState(key, val) {
-      state[key] = val;
-      renderPreview();
-    }
+          {/* Productos */}
+          <div className="py-6">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b-2 border-pink-100 text-[10px] uppercase tracking-wider text-slate-400">
+                  <th className="pb-3 font-bold">Descripción / Producto</th>
+                  <th className="pb-3 font-bold text-center w-16">Cant.</th>
+                  <th className="pb-3 font-bold text-right w-28">P. Unitario</th>
+                  <th className="pb-3 font-bold text-right w-32">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {items.map((item, idx) => {
+                  const qty = Number(item.quantity) || 0;
+                  const price = Number(item.price) || 0;
+                  const itemTotalUSD = qty * price;
+                  const itemTotalVES = itemTotalUSD * exchangeRate;
 
-    function updateItem(idx, key, val) {
-      state.items[idx][key] = val;
-      renderPreview();
-    }
+                  return (
+                    <tr key={idx} className="group">
+                      <td className="py-3 pr-2">
+                        <p className="font-bold text-slate-900">
+                          {item.title || 'Producto sin título'}
+                        </p>
+                        {item.description && (
+                          <p className="text-[10px] text-slate-500 font-light mt-0.5">
+                            {item.description}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-3 text-center font-medium text-slate-700">
+                        {qty}
+                      </td>
+                      <td className="py-3 text-right font-medium text-slate-700">
+                        {currency === 'USD' ? `$ ${price.toFixed(2)}` : `Bs. ${(price * exchangeRate).toFixed(2)}`}
+                      </td>
+                      <td className="py-3 text-right">
+                        {renderMoney(itemTotalUSD, itemTotalVES)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-    function addItem() {
-      state.items.push({ id: Date.now(), title: '', description: '', quantity: 1, price: 0 });
-      renderItemsForm();
-      renderPreview();
-    }
+          {/* Totales y notas */}
+          <div className="pt-4 grid grid-cols-12 gap-6 border-t border-slate-100">
+            <div className="col-span-7 space-y-4">
+              {paymentInfo && (
+                <div className="bg-pink-50/50 p-3 rounded-xl border border-pink-100/60">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-pink-700 mb-1">
+                    Métodos de Pago & Cuentas:
+                  </h4>
+                  <p className="text-[10px] text-slate-600 whitespace-pre-line leading-relaxed">
+                    {paymentInfo}
+                  </p>
+                </div>
+              )}
 
-    function removeItem(idx) {
-      state.items.splice(idx, 1);
-      renderItemsForm();
-      renderPreview();
-    }
+              {notes && (
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Notas adicionales:
+                  </h4>
+                  <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                    {notes}
+                  </p>
+                </div>
+              )}
+            </div>
 
-    function setCurrency(curr) {
-      state.currency = curr;
-      document.getElementById('btn-usd').className = `btn-toggle ${curr === 'USD' ? 'active' : ''}`;
-      document.getElementById('btn-ves').className = `btn-toggle ${curr === 'VES' ? 'active' : ''}`;
-      renderPreview();
-    }
+            <div className="col-span-5 space-y-2 text-right">
+              <div className="flex justify-between items-center text-slate-600 py-1">
+                <span>Subtotal:</span>
+                <span>{renderMoney(subtotalUSD, subtotalVES)}</span>
+              </div>
 
-    // Inicializar
-    renderItemsForm();
-    renderPreview();
+              {Number(discountPercent) > 0 && (
+                <div className="flex justify-between items-center text-pink-600 py-1">
+                  <span>Descuento ({discountPercent}%):</span>
+                  <span>- {renderMoney(discountUSD, discountVES)}</span>
+                </div>
+              )}
+
+              <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-3.5 rounded-2xl shadow-md mt-3 flex items-center justify-between">
+                <span className="text-xs uppercase font-bold tracking-wider text-pink-300">
+                  Total a Pagar
+                </span>
+                <div className="text-right">
+                  <div className="text-base font-black">
+                    {currency === 'USD' ? `$ ${totalUSD.toFixed(2)}` : `Bs. ${totalVES.toFixed(2)}`}
+                  </div>
+                  <div className="text-[10px] text-slate-300 font-light">
+                    {currency === 'USD' ? `Eqv: Bs. ${totalVES.toFixed(2)}` : `Eqv: $ ${totalUSD.toFixed(2)}`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-6 border-t border-slate-100 text-center space-y-1">
+            <p className="text-[11px] font-bold text-slate-800 tracking-wider">
+              ¡Gracias por tu compra en Ari Fashion!
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Sigue las tendencias en moda, belleza y estilo.
+            </p>
+          </div>
+        </div>
+      );
+    });
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
   </script>
 </body>
 </html>
