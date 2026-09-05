@@ -40,10 +40,9 @@
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased selection:bg-pink-500 selection:text-white">
   <div id="root"></div>
-
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
-
+    
     // Componentes de Iconos SVG
     const IconUser = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>);
     const IconFileText = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>);
@@ -55,6 +54,7 @@
     const IconSettings = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>);
     const IconCheck = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>);
     const IconDownload = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>);
+    const IconWhatsapp = () => (<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.124-.669-1.612-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>);
 
     function App() {
       const [activeTab, setActiveTab] = useState('editor');
@@ -63,7 +63,8 @@
       const [logoUrl, setLogoUrl] = useState('');
       const [exchangeRate, setExchangeRate] = useState(() => Number(localStorage.getItem('ari_exchange_rate')) || 36.50);
       const [currency, setCurrency] = useState('USD');
-
+      const [paymentStatus, setPaymentStatus] = useState('Pendiente');
+      
       const [invoiceNumber, setInvoiceNumber] = useState(() => {
         const lastNum = localStorage.getItem('ari_last_invoice_seq');
         const next = lastNum ? parseInt(lastNum, 10) + 1 : 1;
@@ -71,33 +72,39 @@
       });
       const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
       const [dueDate, setDueDate] = useState('');
-
       const [clientName, setClientName] = useState('');
       const [clientDoc, setClientDoc] = useState('');
       const [clientPhone, setClientPhone] = useState('');
       const [clientAddress, setClientAddress] = useState('');
-
+      
       const [items, setItems] = useState([
         { id: 1, title: '', description: '', quantity: 1, price: 0 }
       ]);
       const [discountPercent, setDiscountPercent] = useState(0);
-
       const [paymentInfo, setPaymentInfo] = useState('');
       const [notes, notesSet] = useState('');
-
+      
       const [invoiceHistory, setInvoiceHistory] = useState(() => {
         const saved = localStorage.getItem('ari_invoice_history');
         return saved ? JSON.parse(saved) : [];
       });
-
       const [errors, setErrors] = useState({});
       const [showModalPreview, setShowModalPreview] = useState(false);
       const invoiceRef = useRef(null);
 
+      // Catálogo rápido predefinido para tienda de ropa/accesorios
+      const quickCatalog = [
+        { title: 'Vestido Casual / Seda', price: 25.00, description: 'Talla M / Varios colores' },
+        { title: 'Conjunto Top y Short', price: 20.00, description: 'Talla S/M' },
+        { title: 'Cartera de Tendencia', price: 18.00, description: 'Diseño minimalista' },
+        { title: 'Set de Accesorios / Joyería', price: 10.00, description: 'Acero inoxidable' },
+        { title: 'Zapatos / Calzado Casual', price: 30.00, description: 'Talla 37' }
+      ];
+
       useEffect(() => {
         localStorage.setItem('ari_invoice_history', JSON.stringify(invoiceHistory));
       }, [invoiceHistory]);
-
+      
       useEffect(() => {
         localStorage.setItem('ari_exchange_rate', exchangeRate);
       }, [exchangeRate]);
@@ -106,15 +113,17 @@
         const file = e.target.files[0];
         if (file) {
           const reader = new FileReader();
-          reader.onloadend = () => {
-            setLogoUrl(reader.result);
-          };
+          reader.onloadend = () => { setLogoUrl(reader.result); };
           reader.readAsDataURL(file);
         }
       };
 
-      const handleAddItem = () => {
-        setItems([...items, { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }]);
+      const handleAddItem = (presetItem = null) => {
+        if (presetItem) {
+          setItems([...items, { id: Date.now(), title: presetItem.title, description: presetItem.description, quantity: 1, price: presetItem.price }]);
+        } else {
+          setItems([...items, { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }]);
+        }
       };
 
       const handleRemoveItem = (id) => {
@@ -137,7 +146,6 @@
       }, [subtotalUSD, discountPercent]);
 
       const totalUSD = useMemo(() => Math.max(0, subtotalUSD - discountUSD), [subtotalUSD, discountUSD]);
-
       const subtotalVES = subtotalUSD * exchangeRate;
       const discountVES = discountUSD * exchangeRate;
       const totalVES = totalUSD * exchangeRate;
@@ -162,10 +170,9 @@
 
       const validateForm = () => {
         const newErrors = {};
-        if (!invoiceNumber.trim()) newErrors.invoiceNumber = 'El número de factura es obligatorio.';
-        if (!clientName.trim()) newErrors.clientName = 'El nombre del cliente es obligatorio.';
-        if (items.some(item => !item.title.trim())) newErrors.items = 'Todos los ítems deben tener título.';
-        
+        if (!invoiceNumber.trim()) newErrors.invoiceNumber = 'Obligatorio';
+        if (!clientName.trim()) newErrors.clientName = 'Obligatorio';
+        if (items.some(item => !item.title.trim())) newErrors.items = 'Título obligatorio';
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
       };
@@ -188,11 +195,10 @@
           paymentInfo,
           notes,
           templateStyle,
-          logoUrl
+          logoUrl,
+          paymentStatus
         };
-
         setInvoiceHistory([newInvoice, ...invoiceHistory]);
-
         const numericPart = invoiceNumber.replace(/[^0-9]/g, '');
         if (numericPart) {
           const nextSeq = parseInt(numericPart, 10) + 1;
@@ -205,12 +211,27 @@
 
       const handleSaveAndEmit = () => {
         if (!validateForm()) {
-          alert('Por favor completa los campos obligatorios marcados en rojo.');
+          alert('Por favor completa los campos obligatorios.');
           return;
         }
         saveToHistoryAndSequence();
-        alert(`¡Factura ${invoiceNumber} emitida y guardada con éxito en el historial!`);
         window.print();
+      };
+
+      const sendToWhatsApp = () => {
+        if (!validateForm()) {
+          alert('Completa los campos obligatorios para enviar.');
+          return;
+        }
+        const phoneClean = clientPhone ? clientPhone.replace(/\D/g, '') : '';
+        const itemsList = items.map(i => `- ${i.quantity}x ${i.title} ($${(i.quantity * i.price).toFixed(2)})`).join('%0A');
+        const text = `*FACTURA ${invoiceNumber}* - Ari Fashion ✨%0A%0A` +
+                     `Cliente: *${clientName}*%0A` +
+                     `Estatus: *${paymentStatus}*%0A%0A` +
+                     `*Detalle:*%0A${itemsList}%0A%0A` +
+                     `*Total:* $${totalUSD.toFixed(2)} (Bs. ${totalVES.toFixed(2)})%0A%0A` +
+                     `¡Gracias por tu compra! 💖`;
+        window.open(`https://wa.me/${phoneClean}?text=${text}`, '_blank');
       };
 
       const downloadPNG = async () => {
@@ -239,17 +260,14 @@
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
           let heightLeft = imgHeight;
           let position = 0;
-
           pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
           heightLeft -= pageHeight;
-
           while (heightLeft >= 0) {
             position = heightLeft - imgHeight;
             pdf.addPage();
             pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
           }
-
           pdf.save(`${invoiceNumber || 'factura'}.pdf`);
         } catch (err) {
           console.error(err);
@@ -272,34 +290,26 @@
                   <p className="text-[10px] text-slate-400">Sistema Profesional para Emprendimientos</p>
                 </div>
               </div>
-
               <div className="flex items-center gap-2 flex-wrap justify-center">
                 <button
                   onClick={() => setActiveTab('editor')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
-                    activeTab === 'editor' 
-                      ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20' 
-                      : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    activeTab === 'editor' ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20' : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   <IconFileText />
                   <span>Nueva Factura</span>
                 </button>
-
                 <button
                   onClick={() => setActiveTab('history')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
-                    activeTab === 'history' 
-                      ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20' 
-                      : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    activeTab === 'history' ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20' : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   <IconHistory />
                   <span>Historial ({invoiceHistory.length})</span>
                 </button>
-
                 <div className={`h-6 w-[1px] mx-1 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`} />
-
                 <div className="flex items-center space-x-2 text-xs">
                   <span className="text-slate-400 font-semibold">Tasa Bs/$:</span>
                   <input
@@ -310,20 +320,17 @@
                     className={`w-20 px-2 py-1 rounded-lg text-center font-bold border outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
                   />
                 </div>
-
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                   className={`text-xs px-2.5 py-1 rounded-lg font-bold border outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-pink-400' : 'bg-slate-100 border-slate-300 text-pink-600'}`}
                 >
-                  <option value="USD">Moneda: USD ($)</option>
-                  <option value="VES">Moneda: VES (Bs)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="VES">VES (Bs)</option>
                 </select>
-
                 <button
                   onClick={() => setIsDarkMode(!isDarkMode)}
                   className={`p-2 rounded-lg border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
-                  title="Cambiar Tema"
                 >
                   {isDarkMode ? '☀️' : '🌙'}
                 </button>
@@ -341,11 +348,9 @@
                   </h2>
                   <span className="text-xs text-slate-400">Total guardadas: {invoiceHistory.length}</span>
                 </div>
-
                 {invoiceHistory.length === 0 ? (
                   <div className={`p-12 text-center rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>
                     <p className="text-sm font-semibold">No hay facturas emitidas todavía.</p>
-                    <p className="text-xs mt-1">Crea tu primera factura en la pestaña "Nueva Factura".</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -356,23 +361,20 @@
                             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-pink-500/10 text-pink-500 border border-pink-500/20">
                               {inv.invoiceNumber}
                             </span>
-                            <p className={`text-sm font-bold mt-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                              {inv.clientName}
-                            </p>
+                            <p className={`text-sm font-bold mt-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{inv.clientName}</p>
                           </div>
                           <div className="text-right">
                             <span className="text-xs font-black text-pink-500">$ {inv.totalUSD.toFixed(2)}</span>
-                            <span className="block text-[10px] text-slate-400">Bs. {inv.totalVES.toFixed(2)}</span>
+                            <span className={`block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 ${inv.paymentStatus === 'Pagado' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                              {inv.paymentStatus || 'Pendiente'}
+                            </span>
                           </div>
                         </div>
-
                         <div className={`text-xs space-y-1 pt-2 border-t ${isDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
                           <p><strong>Fecha:</strong> {inv.invoiceDate}</p>
-                          <p><strong>C.I / RIF:</strong> {inv.clientDoc || 'N/A'}</p>
+                          <p><strong>CI/RIF:</strong> {inv.clientDoc || 'N/A'}</p>
                           <p><strong>Ítems:</strong> {inv.items.length} producto(s)</p>
-                          <p><strong>Estilo:</strong> <span className="uppercase text-[10px] font-bold text-pink-400">{inv.templateStyle}</span></p>
                         </div>
-
                         <div className="pt-2 flex items-center justify-end gap-2">
                           <button
                             onClick={() => {
@@ -389,6 +391,7 @@
                               notesSet(inv.notes);
                               setTemplateStyle(inv.templateStyle || 'modern');
                               setLogoUrl(inv.logoUrl || '');
+                              setPaymentStatus(inv.paymentStatus || 'Pendiente');
                               setActiveTab('editor');
                             }}
                             className="px-3 py-1.5 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-500 font-bold text-xs transition"
@@ -404,59 +407,52 @@
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
+                {/* PANEL DE CONTROL / INPUTS */}
                 <div className="lg:col-span-6 space-y-5">
                   <div className={`p-4 rounded-2xl border shadow-sm space-y-3 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                     <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
                       <IconSettings />
-                      <span>Diseño de Plantilla & Estética</span>
+                      <span>Diseño & Estado de Pago</span>
                     </h2>
                     <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => setTemplateStyle('modern')}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
-                          templateStyle === 'modern' 
-                            ? 'border-pink-500 bg-pink-500/10 text-pink-400' 
-                            : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
-                        }`}
-                      >
-                        <span>✨ Moderna Rosa</span>
-                      </button>
-                      <button
-                        onClick={() => setTemplateStyle('minimal')}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
-                          templateStyle === 'minimal' 
-                            ? 'border-pink-500 bg-pink-500/10 text-pink-400' 
-                            : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
-                        }`}
-                      >
-                        <span>📌 Minimalista</span>
-                      </button>
-                      <button
-                        onClick={() => setTemplateStyle('darkacademia')}
-                        className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
-                          templateStyle === 'darkacademia' 
-                            ? 'border-pink-500 bg-pink-500/10 text-pink-400' 
-                            : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
-                        }`}
-                      >
-                        <span>🏛️ Dark Academia</span>
-                      </button>
+                      {['modern', 'minimal', 'darkacademia'].map((style) => (
+                        <button
+                          key={style}
+                          onClick={() => setTemplateStyle(style)}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 uppercase ${
+                            templateStyle === style ? 'border-pink-500 bg-pink-500/10 text-pink-400' : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+                          }`}
+                        >
+                          <span>{style}</span>
+                        </button>
+                      ))}
                     </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-[11px] font-semibold text-slate-400">Logo del Negocio (Enlace URL o Subir Archivo)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="https://ejemplo.com/logo.png"
-                          value={logoUrl.startsWith('data:') ? '[Imagen cargada desde archivo]' : logoUrl}
-                          onChange={(e) => setLogoUrl(e.target.value)}
-                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
-                        />
-                        <label className="cursor-pointer px-3 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-500 text-xs font-bold border border-pink-500/20 flex items-center justify-center whitespace-nowrap transition">
-                          📁 Subir foto
-                          <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                        </label>
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">Estatus</label>
+                        <select
+                          value={paymentStatus}
+                          onChange={(e) => setPaymentStatus(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-2 rounded-lg font-bold border outline-none ${isDarkMode ? 'bg-slate-950 border-slate-700 text-pink-400' : 'bg-slate-50 border-slate-300 text-pink-600'}`}
+                        >
+                          <option value="Pendiente">⏳ Pendiente</option>
+                          <option value="Pagado">✅ Pagado</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-400 mb-1">Logo URL o Archivo</label>
+                        <div className="flex gap-1">
+                          <input
+                            type="text"
+                            placeholder="URL..."
+                            value={logoUrl.startsWith('data:') ? '[Cargado]' : logoUrl}
+                            onChange={(e) => setLogoUrl(e.target.value)}
+                            className={`w-full text-xs px-2 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          />
+                          <label className="cursor-pointer px-2.5 py-2 rounded-lg bg-pink-500/10 text-pink-500 text-xs font-bold border border-pink-500/20 flex items-center justify-center">
+                            📁 <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -473,7 +469,7 @@
                           type="text"
                           value={invoiceNumber}
                           onChange={(e) => setInvoiceNumber(e.target.value)}
-                          className={`w-full text-xs px-3 py-2 rounded-lg font-bold outline-none border ${errors.invoiceNumber ? 'border-rose-500' : isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-3 py-2 rounded-lg font-bold outline-none border ${errors.invoiceNumber ? 'border-rose-500' : isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                       <div>
@@ -482,7 +478,7 @@
                           type="date"
                           value={invoiceDate}
                           onChange={(e) => setInvoiceDate(e.target.value)}
-                          className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                       <div>
@@ -491,7 +487,7 @@
                           type="date"
                           value={dueDate}
                           onChange={(e) => setDueDate(e.target.value)}
-                          className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                     </div>
@@ -510,7 +506,7 @@
                           placeholder="Ej: María Delgado"
                           value={clientName}
                           onChange={(e) => setClientName(e.target.value)}
-                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${errors.clientName ? 'border-rose-500' : isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${errors.clientName ? 'border-rose-500' : isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                       <div>
@@ -520,27 +516,27 @@
                           placeholder="Ej: V-12345678"
                           value={clientDoc}
                           onChange={(e) => setClientDoc(e.target.value)}
-                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Teléfono</label>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Teléfono (WhatsApp)</label>
                         <input
                           type="text"
-                          placeholder="Ej: +58 412 1234567"
+                          placeholder="Ej: +584121234567"
                           value={clientPhone}
                           onChange={(e) => setClientPhone(e.target.value)}
-                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold mb-1 text-slate-400">Dirección</label>
                         <input
                           type="text"
-                          placeholder="Ej: Barquisimeto, Lara"
+                          placeholder="Barquisimeto, Lara"
                           value={clientAddress}
                           onChange={(e) => setClientAddress(e.target.value)}
-                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                         />
                       </div>
                     </div>
@@ -550,24 +546,36 @@
                     <div className="flex items-center justify-between">
                       <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
                         <IconFileText />
-                        <span>Productos o Servicios</span>
+                        <span>Productos / Catálogo Rápido</span>
                       </h2>
                       <button
-                        onClick={handleAddItem}
+                        onClick={() => handleAddItem()}
                         className="px-3 py-1.5 font-bold text-xs rounded-lg bg-pink-500/10 text-pink-500 hover:bg-pink-500/20 transition flex items-center space-x-1"
                       >
                         <IconPlus />
-                        <span>Agregar Ítem</span>
+                        <span>Vacío</span>
                       </button>
+                    </div>
+
+                    {/* Botones de catálogo rápido predefinidos */}
+                    <div className="flex flex-wrap gap-1.5 pt-1 pb-2">
+                      <span className="text-[10px] text-slate-400 w-full font-semibold">Agregar rápido desde tienda:</span>
+                      {quickCatalog.map((prod, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleAddItem(prod)}
+                          className="text-[10px] px-2 py-1 rounded bg-slate-800 hover:bg-pink-500/20 text-pink-300 border border-slate-700 transition"
+                        >
+                          + {prod.title} (${prod.price})
+                        </button>
+                      ))}
                     </div>
 
                     <div className="space-y-3">
                       {items.map((item, index) => (
                         <div key={item.id} className={`p-3 rounded-xl border relative space-y-2 ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/10 text-pink-400">
-                              #{index + 1}
-                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/10 text-pink-400">#{index + 1}</span>
                             {items.length > 1 && (
                               <button onClick={() => handleRemoveItem(item.id)} className="text-slate-400 hover:text-rose-500 transition">
                                 <IconTrash />
@@ -578,10 +586,10 @@
                             <div className="sm:col-span-6">
                               <input
                                 type="text"
-                                placeholder="Producto (Ej: Vestido Silk)"
+                                placeholder="Título del producto"
                                 value={item.title}
                                 onChange={(e) => handleItemChange(item.id, 'title', e.target.value)}
-                                className={`w-full text-xs font-semibold px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                                className={`w-full text-xs font-semibold px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
                               />
                             </div>
                             <div className="sm:col-span-2">
@@ -591,7 +599,7 @@
                                 placeholder="Cant"
                                 value={item.quantity || ''}
                                 onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-                                className={`w-full text-xs text-center px-2 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                                className={`w-full text-xs text-center px-2 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
                               />
                             </div>
                             <div className="sm:col-span-4">
@@ -601,13 +609,13 @@
                                 placeholder="Precio ($)"
                                 value={item.price || ''}
                                 onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
-                                className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none font-semibold text-right border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                                className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none font-semibold text-right border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'}`}
                               />
                             </div>
                           </div>
                           <input
                             type="text"
-                            placeholder="Detalle o Talla (Ej: Talla M / Color Beige)"
+                            placeholder="Talla, color o detalle..."
                             value={item.description}
                             onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
                             className={`w-full text-[11px] px-2.5 py-1.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}
@@ -615,7 +623,6 @@
                         </div>
                       ))}
                     </div>
-
                     <div className="pt-3 border-t flex items-center justify-between border-slate-800">
                       <span className="text-xs font-semibold text-slate-400">Descuento Especial (%):</span>
                       <input
@@ -635,69 +642,58 @@
                       <span>Cuentas de Pago & Notas</span>
                     </h2>
                     <div>
-                      <label className="block text-[11px] font-semibold mb-1 text-slate-400">Datos Bancarios</label>
+                      <label className="block text-[11px] font-semibold mb-1 text-slate-400">Datos Bancarios / Pago Móvil / Zelle</label>
                       <textarea
-                        rows="3"
-                        placeholder="Ej: Pago Móvil / Transferencia Banesco o Mercantil&#10;Zelle: pagos@arifashion.com"
+                        rows="2"
+                        placeholder="Banesco / Mercantil / Pago Móvil&#10;Zelle: pagos@arifashion.com"
                         value={paymentInfo}
                         onChange={(e) => setPaymentInfo(e.target.value)}
-                        className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                       />
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold mb-1 text-slate-400">Notas Adicionales</label>
                       <textarea
                         rows="2"
-                        placeholder="Ej: Gracias por tu compra. Cambios válidos dentro de los 7 días."
+                        placeholder="Gracias por tu compra en Ari Fashion."
                         value={notes}
                         onChange={(e) => notesSet(e.target.value)}
-                        className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
                       />
                     </div>
                   </div>
-
                 </div>
 
+                {/* VISTA PREVIA Y ACCIONES DE SALIDA */}
                 <div className={`lg:col-span-6 p-4 sm:p-6 rounded-2xl flex flex-col items-center justify-start border shadow-xl ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900 border-slate-800'}`}>
                   <div className="w-full max-w-[550px] mb-3 flex items-center justify-between text-slate-400 text-xs">
                     <span className="flex items-center space-x-1.5 font-medium">
                       <IconEye className="text-pink-400" />
                       <span>Vista Previa en Vivo</span>
                     </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowModalPreview(true)}
-                        className="px-2.5 py-1 rounded bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 text-[11px] font-bold transition flex items-center space-x-1 border border-pink-500/20"
-                      >
-                        <IconEye />
-                        <span>Ver Pantalla Completa</span>
-                      </button>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                        Plantilla: <strong className="uppercase text-pink-400">{templateStyle}</strong>
-                      </span>
-                    </div>
+                    <button
+                      onClick={() => setShowModalPreview(true)}
+                      className="px-2.5 py-1 rounded bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 text-[11px] font-bold transition flex items-center space-x-1 border border-pink-500/20"
+                    >
+                      <IconEye />
+                      <span>Pantalla Completa</span>
+                    </button>
                   </div>
 
+                  {/* DOCUMENTO FACTURA IMPRIMIBLE */}
                   <div ref={invoiceRef} className="w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-white text-slate-800 print-area">
                     <div className={`p-6 sm:p-8 ${
-                      templateStyle === 'darkacademia' 
-                        ? 'bg-[#1a1816] text-[#f4eee2] border-b border-[#3a342f]' 
-                        : templateStyle === 'minimal' 
-                        ? 'bg-white text-slate-900 border-b border-slate-200' 
-                        : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
+                      templateStyle === 'darkacademia' ? 'bg-[#1a1816] text-[#f4eee2] border-b border-[#3a342f]' : templateStyle === 'minimal' ? 'bg-white text-slate-900 border-b border-slate-200' : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
                     }`}>
                       <div className="flex justify-between items-start gap-4">
                         <div className="space-y-1">
                           {logoUrl ? (
                             <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-1 rounded" onError={(e)=>{e.target.style.display='none'}} />
                           ) : (
-                            <h1 className="text-xl font-black tracking-widest uppercase font-serif">
-                              ARI FASHION
-                            </h1>
+                            <h1 className="text-xl font-black tracking-widest uppercase font-serif">ARI FASHION</h1>
                           )}
                           <p className={`text-[10px] ${templateStyle === 'darkacademia' ? 'text-[#c8b9a6]' : 'text-slate-300'}`}>
-                            Boutique online de ropa, calzado y accesorios.<br />
-                            Barquisimeto, Lara - Venezuela.
+                            Boutique online de ropa y accesorios.<br />Barquisimeto, Lara - Venezuela.
                           </p>
                         </div>
                         <div className="text-right">
@@ -706,21 +702,23 @@
                           </span>
                           <div className="font-mono font-bold text-sm">#{invoiceNumber || '0001'}</div>
                           <div className="text-[10px] opacity-80 mt-0.5">Emisión: {invoiceDate}</div>
-                          {dueDate && <div className="text-[10px] opacity-80">Vence: {dueDate}</div>}
+                          <div className={`mt-1 inline-block text-[9px] font-bold px-2 py-0.5 rounded ${paymentStatus === 'Pagado' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {paymentStatus}
+                          </div>
                           <div className="text-[9px] opacity-60 mt-1">Tasa: Bs. {exchangeRate.toFixed(2)}</div>
                         </div>
                       </div>
                     </div>
-
+                    
                     <div className="p-6 sm:p-8 space-y-6 bg-white text-slate-800">
                       <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-start text-xs">
                         <div>
                           <p className="font-bold text-slate-900 text-sm">{clientName || 'Nombre del Cliente'}</p>
-                          <p className="text-slate-600 mt-0.5">{clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: Sin especificar'}</p>
+                          <p className="text-slate-600 mt-0.5">{clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: N/A'}</p>
                         </div>
                         <div className="text-right text-slate-600">
-                          <p>{clientPhone || 'Teléfono no registrado'}</p>
-                          <p className="mt-0.5">{clientAddress || 'Dirección de entrega'}</p>
+                          <p>{clientPhone || 'Teléfono no reg.'}</p>
+                          <p className="mt-0.5">{clientAddress || 'Barquisimeto'}</p>
                         </div>
                       </div>
 
@@ -764,7 +762,6 @@
                           )}
                           {notes && <p className="italic text-slate-500">{notes}</p>}
                         </div>
-
                         <div className="sm:col-span-5 space-y-1.5 text-right text-xs">
                           <div className="flex justify-between text-slate-600">
                             <span>Subtotal:</span>
@@ -785,40 +782,40 @@
                           </div>
                         </div>
                       </div>
-
                       <div className="mt-8 pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium">
                         ¡Gracias por tu compra en Ari Fashion! ✨
                       </div>
-
                     </div>
                   </div>
 
+                  {/* BOTONES DE ACCIÓN RÁPIDA */}
                   <div className="w-full max-w-[550px] mt-4 space-y-2">
-                    <button
-                      onClick={handleSaveAndEmit}
-                      className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-2"
-                    >
-                      <IconCheck />
-                      <span>Guardar en Historial e Imprimir</span>
-                    </button>
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => {
-                          if (!validateForm()) { alert('Completa los campos obligatorios.'); return; }
-                          saveToHistoryAndSequence();
-                          downloadPNG();
-                        }}
+                        onClick={handleSaveAndEmit}
+                        className="py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
+                      >
+                        <IconCheck />
+                        <span>Guardar e Imprimir</span>
+                      </button>
+                      <button
+                        onClick={sendToWhatsApp}
+                        className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5"
+                      >
+                        <IconWhatsapp />
+                        <span>Enviar WhatsApp</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => { if (!validateForm()) { alert('Completa campos.'); return; } saveToHistoryAndSequence(); downloadPNG(); }}
                         className="py-2.5 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5"
                       >
                         <IconDownload />
                         <span>Descargar PNG</span>
                       </button>
                       <button
-                        onClick={() => {
-                          if (!validateForm()) { alert('Completa los campos obligatorios.'); return; }
-                          saveToHistoryAndSequence();
-                          downloadPDF();
-                        }}
+                        onClick={() => { if (!validateForm()) { alert('Completa campos.'); return; } saveToHistoryAndSequence(); downloadPDF(); }}
                         className="py-2.5 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5"
                       >
                         <IconDownload />
@@ -826,150 +823,14 @@
                       </button>
                     </div>
                   </div>
-
                 </div>
 
               </div>
             )}
           </main>
-
-          {showModalPreview && (
-            <div className="no-print fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-4 space-y-4 shadow-2xl">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                  <h3 className="text-sm font-bold text-pink-400 flex items-center space-x-2">
-                    <IconEye />
-                    <span>Vista Previa Limpia de la Factura</span>
-                  </h3>
-                  <button
-                    onClick={() => setShowModalPreview(false)}
-                    className="text-slate-400 hover:text-white font-bold text-sm px-2 py-1 rounded bg-slate-800"
-                  >
-                    ✕ Cerrar
-                  </button>
-                </div>
-                <div className="max-h-[75vh] overflow-y-auto p-2 flex justify-center">
-                  <div className="w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-white text-slate-800">
-                    <div className={`p-6 sm:p-8 ${
-                      templateStyle === 'darkacademia' 
-                        ? 'bg-[#1a1816] text-[#f4eee2] border-b border-[#3a342f]' 
-                        : templateStyle === 'minimal' 
-                        ? 'bg-white text-slate-900 border-b border-slate-200' 
-                        : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
-                    }`}>
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="space-y-1">
-                          {logoUrl ? (
-                            <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-1 rounded" onError={(e)=>{e.target.style.display='none'}} />
-                          ) : (
-                            <h1 className="text-xl font-black tracking-widest uppercase font-serif">
-                              ARI FASHION
-                            </h1>
-                          )}
-                          <p className={`text-[10px] ${templateStyle === 'darkacademia' ? 'text-[#c8b9a6]' : 'text-slate-300'}`}>
-                            Boutique online de ropa, calzado y accesorios.<br />
-                            Barquisimeto, Lara - Venezuela.
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span className="inline-block px-2.5 py-0.5 rounded font-bold text-xs uppercase bg-pink-500 text-white mb-1">
-                            FACTURA
-                          </span>
-                          <div className="font-mono font-bold text-sm">#{invoiceNumber || '0001'}</div>
-                          <div className="text-[10px] opacity-80 mt-0.5">Emisión: {invoiceDate}</div>
-                          {dueDate && <div className="text-[10px] opacity-80">Vence: {dueDate}</div>}
-                          <div className="text-[9px] opacity-60 mt-1">Tasa: Bs. {exchangeRate.toFixed(2)}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-6 sm:p-8 space-y-6 bg-white text-slate-800">
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-start text-xs">
-                        <div>
-                          <p className="font-bold text-slate-900 text-sm">{clientName || 'Nombre del Cliente'}</p>
-                          <p className="text-slate-600 mt-0.5">{clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: Sin especificar'}</p>
-                        </div>
-                        <div className="text-right text-slate-600">
-                          <p>{clientPhone || 'Teléfono no registrado'}</p>
-                          <p className="mt-0.5">{clientAddress || 'Dirección de entrega'}</p>
-                        </div>
-                      </div>
-
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b-2 border-pink-100 text-[10px] uppercase tracking-wider text-slate-400">
-                            <th className="pb-2 font-bold">Descripción</th>
-                            <th className="pb-2 font-bold text-center w-12">Cant.</th>
-                            <th className="pb-2 font-bold text-right w-24">P. Unit</th>
-                            <th className="pb-2 font-bold text-right w-28">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
-                          {items.map((item, idx) => {
-                            const qty = Number(item.quantity) || 0;
-                            const price = Number(item.price) || 0;
-                            const tUSD = qty * price;
-                            const tVES = tUSD * exchangeRate;
-                            return (
-                              <tr key={idx}>
-                                <td className="py-2.5 pr-2">
-                                  <p className="font-bold text-slate-900">{item.title || 'Producto sin título'}</p>
-                                  {item.description && <p className="text-[10px] text-slate-500">{item.description}</p>}
-                                </td>
-                                <td className="py-2.5 text-center font-medium text-slate-700">{qty}</td>
-                                <td className="py-2.5 text-right font-medium text-slate-700">$ {price.toFixed(2)}</td>
-                                <td className="py-2.5 text-right">{renderMoney(tUSD, tVES)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-
-                      <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-4">
-                        <div className="sm:col-span-7 space-y-2 text-[10px] text-slate-600">
-                          {paymentInfo && (
-                            <div className="p-3 rounded-lg bg-pink-50/50 border border-pink-100">
-                              <p className="font-bold uppercase tracking-wider text-pink-600 mb-1">Métodos de Pago:</p>
-                              <p className="whitespace-pre-line leading-tight">{paymentInfo}</p>
-                            </div>
-                          )}
-                          {notes && <p className="italic text-slate-500">{notes}</p>}
-                        </div>
-
-                        <div className="sm:col-span-5 space-y-1.5 text-right text-xs">
-                          <div className="flex justify-between text-slate-600">
-                            <span>Subtotal:</span>
-                            <span>{renderMoney(subtotalUSD, subtotalVES)}</span>
-                          </div>
-                          {Number(discountPercent) > 0 && (
-                            <div className="flex justify-between text-pink-600 font-semibold">
-                              <span>Descuento ({discountPercent}%):</span>
-                              <span>- {renderMoney(discountUSD, discountVES)}</span>
-                            </div>
-                          )}
-                          <div className="p-3 rounded-xl bg-slate-900 text-white flex justify-between items-center mt-2">
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-pink-400">Total</span>
-                            <div className="text-right">
-                              <div className="text-sm font-black">$ {totalUSD.toFixed(2)}</div>
-                              <div className="text-[10px] text-slate-300">Bs. {totalVES.toFixed(2)}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-8 pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium">
-                        ¡Gracias por tu compra en Ari Fashion! ✨
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       );
     }
-
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
