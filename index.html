@@ -150,6 +150,12 @@
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
       </svg>
     );
+    const IconHistory = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+    );
+
     function App() {
       const [isPreview, setIsPreview] = useState(false);
       const [isDarkMode, setIsDarkMode] = useState(true);
@@ -171,10 +177,64 @@
       const [discountPercent, setDiscountPercent] = useState(0);
       const [notes, setNotes] = useState('');
       const [paymentInfo, setPaymentInfo] = useState('');
-      
-      // Creamos dos referencias separadas para evitar conflictos entre la vista previa y la exportación
-      const invoiceRef = useRef(null);
+      const [savedInvoices, setSavedInvoices] = useState([]);
+      const [showHistoryModal, setShowHistoryModal] = useState(false);
 
+      // Cargar historial guardado al iniciar
+      useEffect(() => {
+        const stored = localStorage.getItem('ari_fashion_invoices');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            setSavedInvoices(parsed);
+            if (parsed.length > 0) {
+              // Sugerir siguiente número de factura
+              const lastNum = parseInt(parsed[0].invoiceNumber, 10);
+              if (!isNaN(lastNum)) {
+                setInvoiceNumber(String(lastNum + 1).padStart(4, '0'));
+              }
+            }
+          } catch(e) { console.error(e); }
+        }
+      }, []);
+
+      const saveCurrentInvoiceToHistory = () => {
+        const currentInvoice = {
+          id: Date.now(),
+          invoiceNumber,
+          invoiceDate,
+          clientName: clientName || 'Cliente General',
+          totalUSD: calculateSubtotalUSD() * (1 - (Number(discountPercent)||0)/100),
+          items,
+          dueDate,
+          clientDoc,
+          clientPhone,
+          clientAddress,
+          discountPercent,
+          notes,
+          paymentInfo
+        };
+        const updated = [currentInvoice, ...savedInvoices.filter(inv => inv.invoiceNumber !== invoiceNumber)].slice(0, 20);
+        setSavedInvoices(updated);
+        localStorage.setItem('ari_fashion_invoices', JSON.stringify(updated));
+      };
+
+      const loadInvoiceFromHistory = (inv) => {
+        setInvoiceNumber(inv.invoiceNumber);
+        setInvoiceDate(inv.invoiceDate || new Date().toISOString().split('T')[0]);
+        setDueDate(inv.dueDate || '');
+        setClientName(inv.clientName || '');
+        setClientDoc(inv.clientDoc || '');
+        setClientPhone(inv.clientPhone || '');
+        setClientAddress(inv.clientAddress || '');
+        setItems(inv.items || [{ id: 1, title: '', description: '', quantity: 1, price: 0 }]);
+        setDiscountPercent(inv.discountPercent || 0);
+        setNotes(inv.notes || '');
+        setPaymentInfo(inv.paymentInfo || '');
+        setShowHistoryModal(false);
+      };
+      
+      const invoiceRef = useRef(null);
       const calculateSubtotalUSD = () => {
         return items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price) || 0), 0);
       };
@@ -225,7 +285,6 @@
         }
       };
 
-      // Función mejorada para asegurar la captura del canvas limpia y sin errores de referencias nulas
       const prepareCanvasExport = async () => {
         if (!invoiceRef.current) return null;
         if (document.fonts && document.fonts.ready) {
@@ -245,7 +304,7 @@
         setIsExporting(true);
         setExportMessage('Generando imagen...');
         try {
-          // Forzar cambio a vista previa momentáneamente si no está activo para asegurar que la ref esté montada
+          saveCurrentInvoiceToHistory();
           if (!isPreview) {
             setIsPreview(true);
             await new Promise(resolve => setTimeout(resolve, 150));
@@ -275,6 +334,7 @@
         setIsExporting(true);
         setExportMessage('Generando PDF...');
         try {
+          saveCurrentInvoiceToHistory();
           if (!isPreview) {
             setIsPreview(true);
             await new Promise(resolve => setTimeout(resolve, 150));
@@ -321,7 +381,19 @@
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3 text-xs sm:text-sm">
+                <div className="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm">
+                  <button
+                    onClick={() => setShowHistoryModal(true)}
+                    className={`p-2 rounded-lg border transition-all flex items-center space-x-1 ${
+                      isDarkMode 
+                        ? 'bg-slate-900 border-slate-700 text-pink-400 hover:bg-slate-800' 
+                        : 'bg-slate-50 border-slate-200 text-pink-600 hover:bg-slate-200'
+                    }`}
+                    title="Historial de Facturas"
+                  >
+                    <IconHistory className="w-4 h-4" />
+                    <span className="hidden sm:inline font-medium text-xs">Historial ({savedInvoices.length})</span>
+                  </button>
                   <button
                     onClick={() => setIsDarkMode(!isDarkMode)}
                     className={`p-2 rounded-lg border transition-all flex items-center space-x-1.5 ${
@@ -369,6 +441,43 @@
                 </div>
               </div>
             </header>
+          )}
+
+          {/* MODAL DE HISTORIAL */}
+          {showHistoryModal && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className={`w-full max-w-lg rounded-2xl p-6 border shadow-2xl space-y-4 max-h-[80vh] overflow-y-auto ${isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-850'}`}>
+                <div className="flex items-center justify-between border-b pb-3">
+                  <h3 className="text-base font-bold flex items-center space-x-2 text-pink-500">
+                    <IconHistory />
+                    <span>Facturas Guardadas Recientemente</span>
+                  </h3>
+                  <button onClick={() => setShowHistoryModal(false)} className="p-1 rounded-lg hover:bg-slate-800">
+                    <IconX />
+                  </button>
+                </div>
+                {savedInvoices.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-6">No hay facturas guardadas todavía en este navegador.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {savedInvoices.map((inv) => (
+                      <div key={inv.id} className={`p-3 rounded-xl border flex items-center justify-between transition ${isDarkMode ? 'bg-slate-900 border-slate-800 hover:border-pink-500' : 'bg-slate-50 border-slate-200 hover:border-pink-300'}`}>
+                        <div>
+                          <p className="font-bold text-xs">Factura #{inv.invoiceNumber} - {inv.clientName}</p>
+                          <p className="text-[10px] text-slate-400">Fecha: {inv.invoiceDate} | Total: ${Number(inv.totalUSD).toFixed(2)}</p>
+                        </div>
+                        <button
+                          onClick={() => loadInvoiceFromHistory(inv)}
+                          className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white font-semibold text-xs rounded-lg transition"
+                        >
+                          Cargar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* BARRA SUPERIOR MODO VISTA PREVIA */}
@@ -668,7 +777,7 @@
                           </div>
                           <input
                             type="text"
-                            placeholder="Descripción opcional (Ej: Talla M / Color Rosa)"
+                            placeholder="Descripción opcional (Ej: Talla M / Color Beige Claro)"
                             value={item.description}
                             onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
                             className={`w-full text-[11px] px-2 py-1 rounded focus:ring-1 focus:ring-pink-500 outline-none ${
@@ -731,6 +840,7 @@
                       ></textarea>
                     </div>
                   </div>
+
                 </div>
 
                 {/* VISTA PREVIA EN VIVO DERECHA */}
@@ -745,7 +855,6 @@
                     </span>
                   </div>
                   
-                  {/* Este contenedor usa el ref principal para que al dar click en ver vista previa o exportar funcione perfectamente */}
                   <div className="w-full max-w-[550px] rounded-xl shadow-2xl overflow-hidden transform transition-all border border-slate-800">
                     <InvoiceDocument
                       ref={invoiceRef}
@@ -775,6 +884,7 @@
                     />
                   </div>
                 </div>
+
               </div>
             )}
           </main>
@@ -824,6 +934,7 @@
               </div>
             </div>
           )}
+
         </div>
       );
     }
