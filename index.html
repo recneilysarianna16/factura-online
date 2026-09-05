@@ -96,6 +96,17 @@
         localStorage.setItem('ari_exchange_rate', exchangeRate);
       }, [exchangeRate]);
 
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setLogoUrl(reader.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
       const handleAddItem = () => {
         setItems([...items, { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }]);
       };
@@ -175,7 +186,8 @@
           exchangeRate,
           paymentInfo,
           notes,
-          templateStyle
+          templateStyle,
+          logoUrl
         };
 
         setInvoiceHistory([newInvoice, ...invoiceHistory]);
@@ -324,6 +336,7 @@
                               setPaymentInfo(inv.paymentInfo);
                               notesSet(inv.notes);
                               setTemplateStyle(inv.templateStyle || 'modern');
+                              setLogoUrl(inv.logoUrl || '');
                               setActiveTab('editor');
                             }}
                             className="px-3 py-1.5 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-500 font-bold text-xs transition"
@@ -378,15 +391,21 @@
                       </button>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-semibold mb-1 text-slate-400">URL del Logo (Opcional)</label>
-                      <input
-                        type="text"
-                        placeholder="https://ejemplo.com/logo.png"
-                        value={logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
-                        className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
-                      />
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-semibold text-slate-400">Logo del Negocio (Enlace URL o Subir Archivo)</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="https://ejemplo.com/logo.png"
+                          value={logoUrl.startsWith('data:') ? '[Imagen cargada desde archivo]' : logoUrl}
+                          onChange={(e) => setLogoUrl(e.target.value)}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                        <label className="cursor-pointer px-3 py-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-500 text-xs font-bold border border-pink-500/20 flex items-center justify-center whitespace-nowrap transition">
+                          📁 Subir foto
+                          <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -607,7 +626,7 @@
                       <div className="flex justify-between items-start gap-4">
                         <div className="space-y-1">
                           {logoUrl ? (
-                            <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-1" onError={(e)=>{e.target.style.display='none'}} />
+                            <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-1 rounded" onError={(e)=>{e.target.style.display='none'}} />
                           ) : (
                             <h1 className="text-xl font-black tracking-widest uppercase font-serif">
                               ARI FASHION
