@@ -11,6 +11,9 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <!-- Babel para JSX en navegador -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- html2canvas y jspdf para exportar a PNG y PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
       @media print {
         body * {
@@ -51,6 +54,7 @@
     const IconHistory = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>);
     const IconSettings = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>);
     const IconCheck = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>);
+    const IconDownload = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>);
 
     function App() {
       const [activeTab, setActiveTab] = useState('editor');
@@ -87,6 +91,8 @@
       });
 
       const [errors, setErrors] = useState({});
+      const [showModalPreview, setShowModalPreview] = useState(false);
+      const invoiceRef = useRef(null);
 
       useEffect(() => {
         localStorage.setItem('ari_invoice_history', JSON.stringify(invoiceHistory));
@@ -164,12 +170,7 @@
         return Object.keys(newErrors).length === 0;
       };
 
-      const handleSaveAndEmit = () => {
-        if (!validateForm()) {
-          alert('Por favor completa los campos obligatorios marcados en rojo.');
-          return;
-        }
-
+      const saveToHistoryAndSequence = () => {
         const newInvoice = {
           id: Date.now(),
           invoiceNumber,
@@ -200,9 +201,60 @@
           setInvoiceNumber(nextInvNum);
           localStorage.setItem('ari_last_invoice_seq', nextSeq);
         }
+      };
 
+      const handleSaveAndEmit = () => {
+        if (!validateForm()) {
+          alert('Por favor completa los campos obligatorios marcados en rojo.');
+          return;
+        }
+        saveToHistoryAndSequence();
         alert(`¡Factura ${invoiceNumber} emitida y guardada con éxito en el historial!`);
         window.print();
+      };
+
+      const downloadPNG = async () => {
+        if (!invoiceRef.current) return;
+        try {
+          const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true });
+          const link = document.createElement('a');
+          link.download = `${invoiceNumber || 'factura'}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        } catch (err) {
+          console.error(err);
+          alert('Error al generar la imagen PNG.');
+        }
+      };
+
+      const downloadPDF = async () => {
+        if (!invoiceRef.current) return;
+        try {
+          const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true });
+          const imgData = canvas.toDataURL('image/png');
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const imgWidth = 210;
+          const pageHeight = 295;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          let position = 0;
+
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+
+          pdf.save(`${invoiceNumber || 'factura'}.pdf`);
+        } catch (err) {
+          console.error(err);
+          alert('Error al generar el archivo PDF.');
+        }
       };
 
       return (
@@ -612,12 +664,21 @@
                       <IconEye className="text-pink-400" />
                       <span>Vista Previa en Vivo</span>
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                      Plantilla: <strong className="uppercase text-pink-400">{templateStyle}</strong>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowModalPreview(true)}
+                        className="px-2.5 py-1 rounded bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 text-[11px] font-bold transition flex items-center space-x-1 border border-pink-500/20"
+                      >
+                        <IconEye />
+                        <span>Ver Pantalla Completa</span>
+                      </button>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        Plantilla: <strong className="uppercase text-pink-400">{templateStyle}</strong>
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-white text-slate-800 print-area">
+                  <div ref={invoiceRef} className="w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-white text-slate-800 print-area">
                     <div className={`p-6 sm:p-8 ${
                       templateStyle === 'darkacademia' 
                         ? 'bg-[#1a1816] text-[#f4eee2] border-b border-[#3a342f]' 
@@ -732,14 +793,38 @@
                     </div>
                   </div>
 
-                  <div className="w-full max-w-[550px] mt-4">
+                  <div className="w-full max-w-[550px] mt-4 space-y-2">
                     <button
                       onClick={handleSaveAndEmit}
-                      className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-sm rounded-xl shadow-xl shadow-pink-950 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
+                      className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-2"
                     >
                       <IconCheck />
-                      <span>Emitir, Guardar en Historial e Imprimir / PDF</span>
+                      <span>Guardar en Historial e Imprimir</span>
                     </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          if (!validateForm()) { alert('Completa los campos obligatorios.'); return; }
+                          saveToHistoryAndSequence();
+                          downloadPNG();
+                        }}
+                        className="py-2.5 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5"
+                      >
+                        <IconDownload />
+                        <span>Descargar PNG</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!validateForm()) { alert('Completa los campos obligatorios.'); return; }
+                          saveToHistoryAndSequence();
+                          downloadPDF();
+                        }}
+                        className="py-2.5 bg-slate-800 hover:bg-slate-700 text-pink-400 border border-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5"
+                      >
+                        <IconDownload />
+                        <span>Descargar PDF</span>
+                      </button>
+                    </div>
                   </div>
 
                 </div>
@@ -747,6 +832,140 @@
               </div>
             )}
           </main>
+
+          {showModalPreview && (
+            <div className="no-print fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-4 space-y-4 shadow-2xl">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <h3 className="text-sm font-bold text-pink-400 flex items-center space-x-2">
+                    <IconEye />
+                    <span>Vista Previa Limpia de la Factura</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowModalPreview(false)}
+                    className="text-slate-400 hover:text-white font-bold text-sm px-2 py-1 rounded bg-slate-800"
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
+                <div className="max-h-[75vh] overflow-y-auto p-2 flex justify-center">
+                  <div className="w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-white text-slate-800">
+                    <div className={`p-6 sm:p-8 ${
+                      templateStyle === 'darkacademia' 
+                        ? 'bg-[#1a1816] text-[#f4eee2] border-b border-[#3a342f]' 
+                        : templateStyle === 'minimal' 
+                        ? 'bg-white text-slate-900 border-b border-slate-200' 
+                        : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
+                    }`}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-1">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-1 rounded" onError={(e)=>{e.target.style.display='none'}} />
+                          ) : (
+                            <h1 className="text-xl font-black tracking-widest uppercase font-serif">
+                              ARI FASHION
+                            </h1>
+                          )}
+                          <p className={`text-[10px] ${templateStyle === 'darkacademia' ? 'text-[#c8b9a6]' : 'text-slate-300'}`}>
+                            Boutique online de ropa, calzado y accesorios.<br />
+                            Barquisimeto, Lara - Venezuela.
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-0.5 rounded font-bold text-xs uppercase bg-pink-500 text-white mb-1">
+                            FACTURA
+                          </span>
+                          <div className="font-mono font-bold text-sm">#{invoiceNumber || '0001'}</div>
+                          <div className="text-[10px] opacity-80 mt-0.5">Emisión: {invoiceDate}</div>
+                          {dueDate && <div className="text-[10px] opacity-80">Vence: {dueDate}</div>}
+                          <div className="text-[9px] opacity-60 mt-1">Tasa: Bs. {exchangeRate.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 sm:p-8 space-y-6 bg-white text-slate-800">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-start text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm">{clientName || 'Nombre del Cliente'}</p>
+                          <p className="text-slate-600 mt-0.5">{clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: Sin especificar'}</p>
+                        </div>
+                        <div className="text-right text-slate-600">
+                          <p>{clientPhone || 'Teléfono no registrado'}</p>
+                          <p className="mt-0.5">{clientAddress || 'Dirección de entrega'}</p>
+                        </div>
+                      </div>
+
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-pink-100 text-[10px] uppercase tracking-wider text-slate-400">
+                            <th className="pb-2 font-bold">Descripción</th>
+                            <th className="pb-2 font-bold text-center w-12">Cant.</th>
+                            <th className="pb-2 font-bold text-right w-24">P. Unit</th>
+                            <th className="pb-2 font-bold text-right w-28">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                          {items.map((item, idx) => {
+                            const qty = Number(item.quantity) || 0;
+                            const price = Number(item.price) || 0;
+                            const tUSD = qty * price;
+                            const tVES = tUSD * exchangeRate;
+                            return (
+                              <tr key={idx}>
+                                <td className="py-2.5 pr-2">
+                                  <p className="font-bold text-slate-900">{item.title || 'Producto sin título'}</p>
+                                  {item.description && <p className="text-[10px] text-slate-500">{item.description}</p>}
+                                </td>
+                                <td className="py-2.5 text-center font-medium text-slate-700">{qty}</td>
+                                <td className="py-2.5 text-right font-medium text-slate-700">$ {price.toFixed(2)}</td>
+                                <td className="py-2.5 text-right">{renderMoney(tUSD, tVES)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+
+                      <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-4">
+                        <div className="sm:col-span-7 space-y-2 text-[10px] text-slate-600">
+                          {paymentInfo && (
+                            <div className="p-3 rounded-lg bg-pink-50/50 border border-pink-100">
+                              <p className="font-bold uppercase tracking-wider text-pink-600 mb-1">Métodos de Pago:</p>
+                              <p className="whitespace-pre-line leading-tight">{paymentInfo}</p>
+                            </div>
+                          )}
+                          {notes && <p className="italic text-slate-500">{notes}</p>}
+                        </div>
+
+                        <div className="sm:col-span-5 space-y-1.5 text-right text-xs">
+                          <div className="flex justify-between text-slate-600">
+                            <span>Subtotal:</span>
+                            <span>{renderMoney(subtotalUSD, subtotalVES)}</span>
+                          </div>
+                          {Number(discountPercent) > 0 && (
+                            <div className="flex justify-between text-pink-600 font-semibold">
+                              <span>Descuento ({discountPercent}%):</span>
+                              <span>- {renderMoney(discountUSD, discountVES)}</span>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-xl bg-slate-900 text-white flex justify-between items-center mt-2">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-pink-400">Total</span>
+                            <div className="text-right">
+                              <div className="text-sm font-black">$ {totalUSD.toFixed(2)}</div>
+                              <div className="text-[10px] text-slate-300">Bs. {totalVES.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium">
+                        ¡Gracias por tu compra en Ari Fashion! ✨
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
