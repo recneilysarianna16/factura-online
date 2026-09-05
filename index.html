@@ -1,389 +1,737 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Ari Fashion - Generador de Facturas</title>
-
-<!-- Tailwind CSS CDN -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        fontFamily: {
-          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-          serif: ['Playfair Display', 'Georgia', 'serif']
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ari Fashion - Sistema de Facturación Profesional</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel para JSX en navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-area, .print-area * {
+          visibility: visible;
+        }
+        .print-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 20px;
+          box-shadow: none !important;
+          border: none !important;
+        }
+        .no-print {
+          display: none !important;
         }
       }
-    }
-  }
-</script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
-
-<!-- Export libs (plain JS, no build step needed) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<style>
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  @media print {
-    body { background: white !important; padding: 0 !important; margin: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    .no-print { display: none !important; }
-    .print-area { box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-    @page { size: A4; margin: 0; }
-  }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-
-  .field-error { border-color: #f43f5e !important; }
-  .fade-in { animation: fadeIn .2s ease-out; }
-  @keyframes fadeIn { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
-
-  /* ---- Plantillas de factura ---- */
-  .tpl-elegante { --tpl-accent:#ec4899; --tpl-accent-dark:#be185d; --tpl-heading-font:'Playfair Display', serif; --tpl-border-radius:1rem; }
-  .tpl-clasica  { --tpl-accent:#0f172a; --tpl-accent-dark:#0f172a; --tpl-heading-font:'Inter', sans-serif; --tpl-border-radius:0.25rem; }
-  .tpl-colorida { --tpl-accent:#0d9488; --tpl-accent-dark:#0f766e; --tpl-heading-font:'Playfair Display', serif; --tpl-border-radius:1.5rem; }
-
-  .tpl-brand-name { font-family: var(--tpl-heading-font); }
-  .tpl-accent-text { color: var(--tpl-accent); }
-  .tpl-accent-bg { background-color: var(--tpl-accent); }
-  .tpl-accent-border { border-color: var(--tpl-accent); }
-  .tpl-rounded { border-radius: var(--tpl-border-radius); }
-  .tpl-total-box { background: linear-gradient(135deg, var(--tpl-accent-dark), var(--tpl-accent)); }
-</style>
+    </style>
 </head>
-<body class="antialiased min-h-screen transition-colors duration-300">
-<div id="app"></div>
+<body class="bg-slate-950 text-slate-100 antialiased selection:bg-pink-500 selection:text-white">
+  <div id="root"></div>
 
-<script>
-/* =========================================================================
-   ARI FASHION - GENERADOR DE FACTURAS
-   Vanilla JS (sin React/Babel) para carga rápida en GitHub Pages.
-   ========================================================================= */
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
 
-/* ---------- Utilidades de almacenamiento local ---------- */
-const STORE_SETTINGS = 'ariFashion_settings_v2';
-const STORE_INVOICES = 'ariFashion_invoices_v2';
+    // Componentes de Iconos SVG
+    const IconUser = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>);
+    const IconFileText = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>);
+    const IconPlus = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>);
+    const IconTrash = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>);
+    const IconCreditCard = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>);
+    const IconEye = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>);
+    const IconHistory = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>);
+    const IconSettings = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>);
+    const IconCheck = () => (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>);
 
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(STORE_SETTINGS);
-    if (raw) return JSON.parse(raw);
-  } catch (e) { console.warn('No se pudo leer configuración guardada', e); }
-  return {};
-}
-function saveSettings(partial) {
-  const current = loadSettings();
-  const merged = { ...current, ...partial };
-  try { localStorage.setItem(STORE_SETTINGS, JSON.stringify(merged)); } catch (e) { console.warn('No se pudo guardar configuración', e); }
-  return merged;
-}
-function loadInvoices() {
-  try {
-    const raw = localStorage.getItem(STORE_INVOICES);
-    if (raw) return JSON.parse(raw);
-  } catch (e) { console.warn('No se pudo leer historial', e); }
-  return [];
-}
-function saveInvoices(list) {
-  try { localStorage.setItem(STORE_INVOICES, JSON.stringify(list)); } catch (e) { console.warn('No se pudo guardar historial', e); }
-}
+    function App() {
+      const [activeTab, setActiveTab] = useState('editor');
+      const [isDarkMode, setIsDarkMode] = useState(true);
+      const [templateStyle, setTemplateStyle] = useState('modern');
+      const [logoUrl, setLogoUrl] = useState('');
+      const [exchangeRate, setExchangeRate] = useState(() => Number(localStorage.getItem('ari_exchange_rate')) || 36.50);
+      const [currency, setCurrency] = useState('USD');
 
-/* ---------- Estado ---------- */
-const savedSettings = loadSettings();
+      const [invoiceNumber, setInvoiceNumber] = useState(() => {
+        const lastNum = localStorage.getItem('ari_last_invoice_seq');
+        const next = lastNum ? parseInt(lastNum, 10) + 1 : 1;
+        return `FAC-${String(next).padStart(4, '0')}`;
+      });
+      const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
+      const [dueDate, setDueDate] = useState('');
 
-const state = {
-  view: 'editor', // 'editor' | 'preview' | 'historial'
-  isDarkMode: savedSettings.isDarkMode !== undefined ? savedSettings.isDarkMode : true,
-  currency: savedSettings.currency || 'USD',
-  exchangeRate: savedSettings.exchangeRate || 56.50,
-  template: savedSettings.template || 'elegante',
-  logoUrl: savedSettings.logoUrl || '',
+      const [clientName, setClientName] = useState('');
+      const [clientDoc, setClientDoc] = useState('');
+      const [clientPhone, setClientPhone] = useState('');
+      const [clientAddress, setClientAddress] = useState('');
 
-  invoiceNumber: nextInvoiceNumber(savedSettings.lastInvoiceNumber || 0),
-  invoiceDate: new Date().toISOString().split('T')[0],
-  dueDate: '',
+      const [items, setItems] = useState([
+        { id: 1, title: '', description: '', quantity: 1, price: 0 }
+      ]);
+      const [discountPercent, setDiscountPercent] = useState(0);
 
-  client: { name: '', doc: '', phone: '', address: '' },
+      const [paymentInfo, setPaymentInfo] = useState('Pago Móvil / Transferencia Banesco o Mercantil\nZelle: pagos@arifashion.com');
+      const [notes, notesSet] = useState('Gracias por tu compra. Cambios válidos únicamente dentro de los 7 días con etiqueta intacta.');
 
-  items: [{ id: 1, title: '', description: '', quantity: 1, price: 0 }],
+      const [invoiceHistory, setInvoiceHistory] = useState(() => {
+        const saved = localStorage.getItem('ari_invoice_history');
+        return saved ? JSON.parse(saved) : [];
+      });
 
-  discountPercent: 0,
-  notes: '',
-  paymentInfo: savedSettings.paymentInfo || '',
+      const [errors, setErrors] = useState({});
 
-  errors: [],
-  isExporting: false,
-  exportMessage: '',
-  historyPreviewId: null // si se está viendo una factura del historial
-};
+      useEffect(() => {
+        localStorage.setItem('ari_invoice_history', JSON.stringify(invoiceHistory));
+      }, [invoiceHistory]);
 
-function nextInvoiceNumber(lastNumber) {
-  const n = (Number(lastNumber) || 0) + 1;
-  return String(n).padStart(4, '0');
-}
+      useEffect(() => {
+        localStorage.setItem('ari_exchange_rate', exchangeRate);
+      }, [exchangeRate]);
 
-/* ---------- Íconos (SVG como strings) ---------- */
-const ICONS = {
-  sparkles: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`,
-  plus: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>`,
-  trash: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`,
-  eye: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`,
-  download: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>`,
-  fileText: `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`,
-  checkCircle: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
-  x: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`,
-  sun: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`,
-  moon: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`,
-  history: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-9-9 9 9 0 019 9z"/></svg>`,
-  whatsapp: `<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2.003c-5.514 0-9.997 4.483-9.997 9.997 0 1.762.462 3.48 1.34 4.997L2 22l5.116-1.341a9.96 9.96 0 004.888 1.284h.004c5.514 0 9.997-4.483 9.997-9.997 0-2.67-1.04-5.182-2.928-7.069a9.935 9.935 0 00-7.073-2.874zm0 18.166h-.003a8.16 8.16 0 01-4.158-1.139l-.298-.177-3.037.796.811-2.96-.194-.304a8.147 8.147 0 01-1.253-4.385c0-4.509 3.669-8.177 8.184-8.177 2.186 0 4.241.852 5.786 2.398a8.13 8.13 0 012.396 5.788c-.001 4.509-3.67 8.16-8.234 8.16z"/></svg>`
-};
+      const handleAddItem = () => {
+        setItems([...items, { id: Date.now(), title: '', description: '', quantity: 1, price: 0 }]);
+      };
 
-/* ---------- Cálculos ---------- */
-function calcTotals() {
-  const subtotalUSD = state.items.reduce((sum, it) => sum + ((Number(it.quantity) || 0) * (Number(it.price) || 0)), 0);
-  const discountUSD = (subtotalUSD * (Number(state.discountPercent) || 0)) / 100;
-  const totalUSD = subtotalUSD - discountUSD;
-  const rate = Number(state.exchangeRate) || 1;
-  return {
-    subtotalUSD, discountUSD, totalUSD,
-    subtotalVES: subtotalUSD * rate,
-    discountVES: discountUSD * rate,
-    totalVES: totalUSD * rate
-  };
-}
-function formatUSD(val) { return `$ ${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-function formatVES(val) { return `Bs. ${Number(val || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-function renderMoneyHTML(amountUSD, amountVES) {
-  const dim = state.isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  if (state.currency === 'USD') {
-    return `<div><span class="font-bold">${formatUSD(amountUSD)}</span><div class="text-[10px] font-normal ${dim}">Eqv: ${formatVES(amountVES)}</div></div>`;
-  }
-  return `<div><span class="font-bold">${formatVES(amountVES)}</span><div class="text-[10px] font-normal ${dim}">Eqv: ${formatUSD(amountUSD)}</div></div>`;
-}
+      const handleRemoveItem = (id) => {
+        if (items.length > 1) {
+          setItems(items.filter(item => item.id !== id));
+        }
+      };
 
-/* ---------- Validación ---------- */
-function validate() {
-  const errors = [];
-  if (!state.client.name.trim()) errors.push('Falta el nombre del cliente.');
-  const validItems = state.items.filter(it => it.title.trim() !== '' || Number(it.quantity) > 0 || Number(it.price) > 0);
-  if (validItems.length === 0) errors.push('Agrega al menos un producto o servicio.');
-  state.items.forEach((it, idx) => {
-    if (it.title.trim() === '' && (Number(it.quantity) > 0 || Number(it.price) > 0)) {
-      errors.push(`El producto #${idx + 1} necesita un nombre.`);
-    }
-    if (it.title.trim() !== '' && (!(Number(it.quantity) > 0))) {
-      errors.push(`La cantidad del producto "${it.title}" debe ser mayor a 0.`);
-    }
-    if (Number(it.price) < 0) {
-      errors.push(`El precio de "${it.title || 'un producto'}" no puede ser negativo.`);
-    }
-  });
-  if (Number(state.discountPercent) < 0 || Number(state.discountPercent) > 100) {
-    errors.push('El descuento debe estar entre 0% y 100%.');
-  }
-  if (!(Number(state.exchangeRate) > 0)) {
-    errors.push('La tasa de cambio debe ser mayor a 0.');
-  }
-  state.errors = errors;
-  return errors.length === 0;
-}
+      const handleItemChange = (id, field, value) => {
+        setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+      };
 
-/* ---------- Historial ---------- */
-function persistCurrentInvoiceToHistory() {
-  const totals = calcTotals();
-  const invoices = loadInvoices();
-  const snapshot = {
-    id: Date.now(),
-    number: state.invoiceNumber,
-    date: state.invoiceDate,
-    clientName: state.client.name,
-    totalUSD: totals.totalUSD,
-    totalVES: totals.totalVES,
-    currency: state.currency,
-    data: JSON.parse(JSON.stringify(state)) // copia completa para poder reabrirla
-  };
-  invoices.unshift(snapshot);
-  saveInvoices(invoices);
-  saveSettings({ lastInvoiceNumber: Number(state.invoiceNumber) });
-}
+      const subtotalUSD = useMemo(() => {
+        return items.reduce((acc, item) => acc + ((Number(item.quantity) || 0) * (Number(item.price) || 0)), 0);
+      }, [items]);
 
-function loadInvoiceFromHistory(id) {
-  const invoices = loadInvoices();
-  const found = invoices.find(inv => inv.id === id);
-  if (!found) return;
-  Object.assign(state, JSON.parse(JSON.stringify(found.data)));
-  state.view = 'preview';
-  state.historyPreviewId = id;
-  render();
-}
+      const discountUSD = useMemo(() => {
+        const disc = Number(discountPercent) || 0;
+        return (subtotalUSD * disc) / 100;
+      }, [subtotalUSD, discountPercent]);
 
-function deleteInvoiceFromHistory(id) {
-  if (!confirm('¿Eliminar esta factura del historial? Esta acción no se puede deshacer.')) return;
-  const invoices = loadInvoices().filter(inv => inv.id !== id);
-  saveInvoices(invoices);
-  render();
-}
+      const totalUSD = useMemo(() => Math.max(0, subtotalUSD - discountUSD), [subtotalUSD, discountUSD]);
 
-/* ---------- Exportación ---------- */
-async function prepareCanvasExport() {
-  const el = document.getElementById('invoice-print-area');
-  if (!el) return null;
-  if (document.fonts && document.fonts.ready) await document.fonts.ready;
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const scale = isMobile ? 2 : 2.5;
-  return await window.html2canvas(el, {
-    scale, useCORS: true, allowTaint: true,
-    backgroundColor: state.isDarkMode ? '#090d16' : '#ffffff', logging: false
-  });
-}
+      const subtotalVES = subtotalUSD * exchangeRate;
+      const discountVES = discountUSD * exchangeRate;
+      const totalVES = totalUSD * exchangeRate;
 
-async function exportAsImage() {
-  state.isExporting = true; state.exportMessage = 'Generando imagen...'; render();
-  try {
-    const canvas = await prepareCanvasExport();
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `Factura_Ari_Fashion_${state.invoiceNumber || 'SN'}.png`;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    if (state.historyPreviewId === null) persistCurrentInvoiceToHistory();
-  } catch (err) { console.error('Error al exportar imagen:', err); alert('Ocurrió un error generando la imagen.'); }
-  finally { state.isExporting = false; state.exportMessage = ''; render(); }
-}
+      const renderMoney = (usd, ves) => {
+        if (currency === 'USD') {
+          return (
+            <div className="text-right">
+              <span className="font-bold">$ {usd.toFixed(2)}</span>
+              <span className="block text-[10px] text-slate-400">Bs. {ves.toFixed(2)}</span>
+            </div>
+          );
+        } else {
+          return (
+            <div className="text-right">
+              <span className="font-bold">Bs. {ves.toFixed(2)}</span>
+              <span className="block text-[10px] text-slate-400">$ {usd.toFixed(2)}</span>
+            </div>
+          );
+        }
+      };
 
-async function exportAsPDF() {
-  state.isExporting = true; state.exportMessage = 'Generando PDF...'; render();
-  try {
-    const canvas = await prepareCanvasExport();
-    if (!canvas) return;
-    const imgData = canvas.toDataURL('image/png');
-    const jsPDFClass = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
-    const pdf = new jsPDFClass('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Factura_Ari_Fashion_${state.invoiceNumber || 'SN'}.pdf`);
-    if (state.historyPreviewId === null) persistCurrentInvoiceToHistory();
-  } catch (err) { console.error('Error al exportar PDF:', err); alert('Ocurrió un error generando el PDF.'); }
-  finally { state.isExporting = false; state.exportMessage = ''; render(); }
-}
+      const validateForm = () => {
+        const newErrors = {};
+        if (!invoiceNumber.trim()) newErrors.invoiceNumber = 'El número de factura es obligatorio.';
+        if (!clientName.trim()) newErrors.clientName = 'El nombre del cliente es obligatorio.';
+        if (items.some(item => !item.title.trim())) newErrors.items = 'Todos los ítems deben tener título.';
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+      };
 
-function shareOnWhatsApp() {
-  const totals = calcTotals();
-  const total = state.currency === 'USD' ? formatUSD(totals.totalUSD) : formatVES(totals.totalVES);
-  const lines = [
-    `*Ari Fashion* - Factura N° ${state.invoiceNumber}`,
-    `Cliente: ${state.client.name}`,
-    `Fecha: ${state.invoiceDate}`,
-    `Total: ${total}`,
-    '',
-    'Gracias por tu compra ✨'
-  ];
-  const url = `https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`;
-  window.open(url, '_blank');
-}
+      const handleSaveAndEmit = () => {
+        if (!validateForm()) {
+          alert('Por favor completa los campos obligatorios marcados en rojo.');
+          return;
+        }
 
-/* ---------- Manejo de items ---------- */
-function addItem() {
-  state.items.push({ id: Date.now(), title: '', description: '', quantity: 1, price: 0 });
-  render();
-}
-function removeItem(id) {
-  if (state.items.length === 1) return;
-  state.items = state.items.filter(it => it.id !== id);
-  render();
-}
-function updateItem(id, field, value) {
-  const item = state.items.find(it => it.id === id);
-  if (item) item[field] = value;
-}
+        const newInvoice = {
+          id: Date.now(),
+          invoiceNumber,
+          invoiceDate,
+          dueDate,
+          clientName,
+          clientDoc,
+          clientPhone,
+          clientAddress,
+          items,
+          discountPercent,
+          totalUSD,
+          totalVES,
+          exchangeRate,
+          paymentInfo,
+          notes,
+          templateStyle
+        };
 
-/* ---------- Logo ---------- */
-function handleLogoUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onloadend = () => {
-    state.logoUrl = reader.result;
-    saveSettings({ logoUrl: state.logoUrl });
-    render();
-  };
-  reader.readAsDataURL(file);
-}
+        setInvoiceHistory([newInvoice, ...invoiceHistory]);
 
-/* ---------- Nueva factura ---------- */
-function startNewInvoice() {
-  const settings = loadSettings();
-  state.view = 'editor';
-  state.historyPreviewId = null;
-  state.invoiceNumber = nextInvoiceNumber(settings.lastInvoiceNumber || 0);
-  state.invoiceDate = new Date().toISOString().split('T')[0];
-  state.dueDate = '';
-  state.client = { name: '', doc: '', phone: '', address: '' };
-  state.items = [{ id: 1, title: '', description: '', quantity: 1, price: 0 }];
-  state.discountPercent = 0;
-  state.notes = '';
-  state.errors = [];
-  render();
-}
+        const numericPart = invoiceNumber.replace(/[^0-9]/g, '');
+        if (numericPart) {
+          const nextSeq = parseInt(numericPart, 10) + 1;
+          const prefix = invoiceNumber.replace(/[0-9]/g, '');
+          const nextInvNum = `${prefix || 'FAC-'}${String(nextSeq).padStart(4, '0')}`;
+          setInvoiceNumber(nextInvNum);
+          localStorage.setItem('ari_last_invoice_seq', nextSeq);
+        }
 
-/* ---------- Vistas ---------- */
-function goToPreview() {
-  if (!validate()) { render(); return; }
-  state.view = 'preview';
-  render();
-}
+        alert(`¡Factura ${invoiceNumber} emitida y guardada con éxito en el historial!`);
+        window.print();
+      };
 
-/* =========================================================================
-   RENDER
-   ========================================================================= */
-function render() {
-  const app = document.getElementById('app');
-  app.className = `min-h-screen flex flex-col transition-colors duration-300 ${state.isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-100 text-slate-800'}`;
-  app.innerHTML = renderHeader() + renderBody();
-  attachGlobalEvents();
-  if (state.view === 'editor') attachEditorEvents();
-  if (state.view === 'historial') attachHistoryEvents();
-  if (state.view === 'preview') attachPreviewEvents();
-}
+      return (
+        <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+          <header className={`no-print sticky top-0 z-50 border-b backdrop-blur-md px-4 py-3 shadow-sm ${isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'}`}>
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-white font-black shadow-lg shadow-pink-500/30">
+                  A
+                </div>
+                <div>
+                  <h1 className="text-base font-black tracking-wider bg-gradient-to-r from-pink-500 to-rose-400 bg-clip-text text-transparent">
+                    ARI FASHION <span className="text-xs font-normal text-slate-400">| Facturación</span>
+                  </h1>
+                  <p className="text-[10px] text-slate-400">Sistema Profesional para Emprendimientos</p>
+                </div>
+              </div>
 
-function renderHeader() {
-  if (state.view === 'preview') {
-    return `
-    <div class="no-print bg-slate-950 text-white sticky top-0 z-50 px-3 py-2 shadow-xl border-b border-slate-800">
-      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center space-x-1.5 text-xs text-slate-300">
-          ${ICONS.checkCircle.replace('w-4 h-4','w-4 h-4 text-pink-400 shrink-0')}
-          <span class="text-[11px] sm:text-xs"><strong>${state.isExporting ? state.exportMessage : 'Vista Previa Lista'}</strong></span>
+              <div className="flex items-center gap-2 flex-wrap justify-center">
+                <button
+                  onClick={() => setActiveTab('editor')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                    activeTab === 'editor' 
+                      ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20' 
+                      : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <IconFileText />
+                  <span>Nueva Factura</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                    activeTab === 'history' 
+                      ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20' 
+                      : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <IconHistory />
+                  <span>Historial ({invoiceHistory.length})</span>
+                </button>
+
+                <div className={`h-6 w-[1px] mx-1 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+                <div className="flex items-center space-x-2 text-xs">
+                  <span className="text-slate-400 font-semibold">Tasa Bs/$:</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={exchangeRate}
+                    onChange={(e) => setExchangeRate(Number(e.target.value))}
+                    className={`w-20 px-2 py-1 rounded-lg text-center font-bold border outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-100 border-slate-300 text-slate-800'}`}
+                  />
+                </div>
+
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className={`text-xs px-2.5 py-1 rounded-lg font-bold border outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-pink-400' : 'bg-slate-100 border-slate-300 text-pink-600'}`}
+                >
+                  <option value="USD">Moneda: USD ($)</option>
+                  <option value="VES">Moneda: VES (Bs)</option>
+                </select>
+
+                <button
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className={`p-2 rounded-lg border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+                  title="Cambiar Tema"
+                >
+                  {isDarkMode ? '☀️' : '🌙'}
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto p-4 sm:p-6">
+            {activeTab === 'history' ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-black tracking-wide flex items-center space-x-2">
+                    <IconHistory className="text-pink-500" />
+                    <span>Historial de Facturas Emitidas</span>
+                  </h2>
+                  <span className="text-xs text-slate-400">Total guardadas: {invoiceHistory.length}</span>
+                </div>
+
+                {invoiceHistory.length === 0 ? (
+                  <div className={`p-12 text-center rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>
+                    <p className="text-sm font-semibold">No hay facturas emitidas todavía.</p>
+                    <p className="text-xs mt-1">Crea tu primera factura en la pestaña "Nueva Factura".</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {invoiceHistory.map((inv) => (
+                      <div key={inv.id} className={`p-5 rounded-2xl border shadow-sm transition space-y-3 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                              {inv.invoiceNumber}
+                            </span>
+                            <p className={`text-sm font-bold mt-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                              {inv.clientName}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs font-black text-pink-500">$ {inv.totalUSD.toFixed(2)}</span>
+                            <span className="block text-[10px] text-slate-400">Bs. {inv.totalVES.toFixed(2)}</span>
+                          </div>
+                        </div>
+
+                        <div className={`text-xs space-y-1 pt-2 border-t ${isDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
+                          <p><strong>Fecha:</strong> {inv.invoiceDate}</p>
+                          <p><strong>C.I / RIF:</strong> {inv.clientDoc || 'N/A'}</p>
+                          <p><strong>Ítems:</strong> {inv.items.length} producto(s)</p>
+                          <p><strong>Estilo:</strong> <span className="uppercase text-[10px] font-bold text-pink-400">{inv.templateStyle}</span></p>
+                        </div>
+
+                        <div className="pt-2 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setInvoiceNumber(inv.invoiceNumber);
+                              setInvoiceDate(inv.invoiceDate);
+                              setDueDate(inv.dueDate || '');
+                              setClientName(inv.clientName);
+                              setClientDoc(inv.clientDoc);
+                              setClientPhone(inv.clientPhone);
+                              setClientAddress(inv.clientAddress);
+                              setItems(inv.items);
+                              setDiscountPercent(inv.discountPercent);
+                              setPaymentInfo(inv.paymentInfo);
+                              notesSet(inv.notes);
+                              setTemplateStyle(inv.templateStyle || 'modern');
+                              setActiveTab('editor');
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-500 font-bold text-xs transition"
+                          >
+                            Cargar en Editor
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <div className="lg:col-span-6 space-y-5">
+                  <div className={`p-4 rounded-2xl border shadow-sm space-y-3 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
+                      <IconSettings />
+                      <span>Diseño de Plantilla & Estética</span>
+                    </h2>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setTemplateStyle('modern')}
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
+                          templateStyle === 'modern' 
+                            ? 'border-pink-500 bg-pink-500/10 text-pink-400' 
+                            : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+                        }`}
+                      >
+                        <span>✨ Moderna Rosa</span>
+                      </button>
+                      <button
+                        onClick={() => setTemplateStyle('minimal')}
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
+                          templateStyle === 'minimal' 
+                            ? 'border-pink-500 bg-pink-500/10 text-pink-400' 
+                            : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+                        }`}
+                      >
+                        <span>📌 Minimalista</span>
+                      </button>
+                      <button
+                        onClick={() => setTemplateStyle('darkacademia')}
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
+                          templateStyle === 'darkacademia' 
+                            ? 'border-pink-500 bg-pink-500/10 text-pink-400' 
+                            : isDarkMode ? 'border-slate-800 bg-slate-950 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
+                        }`}
+                      >
+                        <span>🏛️ Dark Academia</span>
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold mb-1 text-slate-400">URL del Logo (Opcional)</label>
+                      <input
+                        type="text"
+                        placeholder="https://ejemplo.com/logo.png"
+                        value={logoUrl}
+                        onChange={(e) => setLogoUrl(e.target.value)}
+                        className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border shadow-sm space-y-4 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
+                      <IconFileText />
+                      <span>Datos del Comprobante</span>
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">N° Factura *</label>
+                        <input
+                          type="text"
+                          value={invoiceNumber}
+                          onChange={(e) => setInvoiceNumber(e.target.value)}
+                          className={`w-full text-xs px-3 py-2 rounded-lg font-bold outline-none border ${errors.invoiceNumber ? 'border-rose-500' : isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Emisión</label>
+                        <input
+                          type="date"
+                          value={invoiceDate}
+                          onChange={(e) => setInvoiceDate(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Vencimiento</label>
+                        <input
+                          type="date"
+                          value={dueDate}
+                          onChange={(e) => setDueDate(e.target.value)}
+                          className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border shadow-sm space-y-4 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
+                      <IconUser />
+                      <span>Datos del Cliente *</span>
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Nombre / Razón Social *</label>
+                        <input
+                          type="text"
+                          placeholder="Ej: María Delgado"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${errors.clientName ? 'border-rose-500' : isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">C.I. / RIF</label>
+                        <input
+                          type="text"
+                          placeholder="Ej: V-12345678"
+                          value={clientDoc}
+                          onChange={(e) => setClientDoc(e.target.value)}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Teléfono</label>
+                        <input
+                          type="text"
+                          placeholder="Ej: +58 412 1234567"
+                          value={clientPhone}
+                          onChange={(e) => setClientPhone(e.target.value)}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold mb-1 text-slate-400">Dirección</label>
+                        <input
+                          type="text"
+                          placeholder="Ej: Barquisimeto, Lara"
+                          value={clientAddress}
+                          onChange={(e) => setClientAddress(e.target.value)}
+                          className={`w-full text-xs px-3 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border shadow-sm space-y-4 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
+                        <IconFileText />
+                        <span>Productos o Servicios</span>
+                      </h2>
+                      <button
+                        onClick={handleAddItem}
+                        className="px-3 py-1.5 font-bold text-xs rounded-lg bg-pink-500/10 text-pink-500 hover:bg-pink-500/20 transition flex items-center space-x-1"
+                      >
+                        <IconPlus />
+                        <span>Agregar Ítem</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {items.map((item, index) => (
+                        <div key={item.id} className={`p-3 rounded-xl border relative space-y-2 ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/10 text-pink-400">
+                              #{index + 1}
+                            </span>
+                            {items.length > 1 && (
+                              <button onClick={() => handleRemoveItem(item.id)} className="text-slate-400 hover:text-rose-500 transition">
+                                <IconTrash />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                            <div className="sm:col-span-6">
+                              <input
+                                type="text"
+                                placeholder="Producto (Ej: Vestido Silk)"
+                                value={item.title}
+                                onChange={(e) => handleItemChange(item.id, 'title', e.target.value)}
+                                className={`w-full text-xs font-semibold px-2.5 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Cant"
+                                value={item.quantity || ''}
+                                onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                                className={`w-full text-xs text-center px-2 py-2 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                              />
+                            </div>
+                            <div className="sm:col-span-4">
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="Precio ($)"
+                                value={item.price || ''}
+                                onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
+                                className={`w-full text-xs px-2.5 py-2 rounded-lg outline-none font-semibold text-right border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                              />
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Detalle o Talla (Ej: Talla M / Color Beige)"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                            className={`w-full text-[11px] px-2.5 py-1.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-600'}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 border-t flex items-center justify-between border-slate-800">
+                      <span className="text-xs font-semibold text-slate-400">Descuento Especial (%):</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={discountPercent || ''}
+                        onChange={(e) => setDiscountPercent(e.target.value)}
+                        className={`w-24 text-xs px-2 py-1.5 rounded-lg text-right font-bold outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`p-5 rounded-2xl border shadow-sm space-y-4 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-pink-500 flex items-center space-x-1.5">
+                      <IconCreditCard />
+                      <span>Cuentas de Pago & Notas</span>
+                    </h2>
+                    <div>
+                      <label className="block text-[11px] font-semibold mb-1 text-slate-400">Datos Bancarios</label>
+                      <textarea
+                        rows="3"
+                        value={paymentInfo}
+                        onChange={(e) => setPaymentInfo(e.target.value)}
+                        className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold mb-1 text-slate-400">Notas Adicionales</label>
+                      <textarea
+                        rows="2"
+                        value={notes}
+                        onChange={(e) => notesSet(e.target.value)}
+                        className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                <div className={`lg:col-span-6 p-4 sm:p-6 rounded-2xl flex flex-col items-center justify-start border shadow-xl ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900 border-slate-800'}`}>
+                  <div className="w-full max-w-[550px] mb-3 flex items-center justify-between text-slate-400 text-xs">
+                    <span className="flex items-center space-x-1.5 font-medium">
+                      <IconEye className="text-pink-400" />
+                      <span>Vista Previa en Vivo</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                      Plantilla: <strong className="uppercase text-pink-400">{templateStyle}</strong>
+                    </span>
+                  </div>
+
+                  <div className="w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden border border-slate-800 bg-white text-slate-800 print-area">
+                    <div className={`p-6 sm:p-8 ${
+                      templateStyle === 'darkacademia' 
+                        ? 'bg-[#1a1816] text-[#f4eee2] border-b border-[#3a342f]' 
+                        : templateStyle === 'minimal' 
+                        ? 'bg-white text-slate-900 border-b border-slate-200' 
+                        : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white'
+                    }`}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-1">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-1" onError={(e)=>{e.target.style.display='none'}} />
+                          ) : (
+                            <h1 className="text-xl font-black tracking-widest uppercase font-serif">
+                              ARI FASHION
+                            </h1>
+                          )}
+                          <p className={`text-[10px] ${templateStyle === 'darkacademia' ? 'text-[#c8b9a6]' : 'text-slate-300'}`}>
+                            Boutique online de ropa, calzado y accesorios.<br />
+                            Barquisimeto, Lara - Venezuela.
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-0.5 rounded font-bold text-xs uppercase bg-pink-500 text-white mb-1">
+                            FACTURA
+                          </span>
+                          <div className="font-mono font-bold text-sm">#{invoiceNumber || '0001'}</div>
+                          <div className="text-[10px] opacity-80 mt-0.5">Emisión: {invoiceDate}</div>
+                          {dueDate && <div className="text-[10px] opacity-80">Vence: {dueDate}</div>}
+                          <div className="text-[9px] opacity-60 mt-1">Tasa: Bs. {exchangeRate.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 sm:p-8 space-y-6 bg-white text-slate-800">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-start text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm">{clientName || 'Nombre del Cliente'}</p>
+                          <p className="text-slate-600 mt-0.5">{clientDoc ? `CI/RIF: ${clientDoc}` : 'CI/RIF: Sin especificar'}</p>
+                        </div>
+                        <div className="text-right text-slate-600">
+                          <p>{clientPhone || 'Teléfono no registrado'}</p>
+                          <p className="mt-0.5">{clientAddress || 'Dirección de entrega'}</p>
+                        </div>
+                      </div>
+
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-pink-100 text-[10px] uppercase tracking-wider text-slate-400">
+                            <th className="pb-2 font-bold">Descripción</th>
+                            <th className="pb-2 font-bold text-center w-12">Cant.</th>
+                            <th className="pb-2 font-bold text-right w-24">P. Unit</th>
+                            <th className="pb-2 font-bold text-right w-28">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                          {items.map((item, idx) => {
+                            const qty = Number(item.quantity) || 0;
+                            const price = Number(item.price) || 0;
+                            const tUSD = qty * price;
+                            const tVES = tUSD * exchangeRate;
+                            return (
+                              <tr key={idx}>
+                                <td className="py-2.5 pr-2">
+                                  <p className="font-bold text-slate-900">{item.title || 'Producto sin título'}</p>
+                                  {item.description && <p className="text-[10px] text-slate-500">{item.description}</p>}
+                                </td>
+                                <td className="py-2.5 text-center font-medium text-slate-700">{qty}</td>
+                                <td className="py-2.5 text-right font-medium text-slate-700">$ {price.toFixed(2)}</td>
+                                <td className="py-2.5 text-right">{renderMoney(tUSD, tVES)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+
+                      <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-4">
+                        <div className="sm:col-span-7 space-y-2 text-[10px] text-slate-600">
+                          {paymentInfo && (
+                            <div className="p-3 rounded-lg bg-pink-50/50 border border-pink-100">
+                              <p className="font-bold uppercase tracking-wider text-pink-600 mb-1">Métodos de Pago:</p>
+                              <p className="whitespace-pre-line leading-tight">{paymentInfo}</p>
+                            </div>
+                          )}
+                          {notes && <p className="italic text-slate-500">{notes}</p>}
+                        </div>
+
+                        <div className="sm:col-span-5 space-y-1.5 text-right text-xs">
+                          <div className="flex justify-between text-slate-600">
+                            <span>Subtotal:</span>
+                            <span>{renderMoney(subtotalUSD, subtotalVES)}</span>
+                          </div>
+                          {Number(discountPercent) > 0 && (
+                            <div className="flex justify-between text-pink-600 font-semibold">
+                              <span>Descuento ({discountPercent}%):</span>
+                              <span>- {renderMoney(discountUSD, discountVES)}</span>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-xl bg-slate-900 text-white flex justify-between items-center mt-2">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-pink-400">Total</span>
+                            <div className="text-right">
+                              <div className="text-sm font-black">$ {totalUSD.toFixed(2)}</div>
+                              <div className="text-[10px] text-slate-300">Bs. {totalVES.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium">
+                        ¡Gracias por tu compra en Ari Fashion! ✨
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <div className="w-full max-w-[550px] mt-4">
+                    <button
+                      onClick={handleSaveAndEmit}
+                      className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-sm rounded-xl shadow-xl shadow-pink-950 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
+                    >
+                      <IconCheck />
+                      <span>Emitir, Guardar en Historial e Imprimir / PDF</span>
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+          </main>
         </div>
-        <div class="flex items-center space-x-1.5 sm:space-x-2 flex-wrap">
-          <button id="btn-export-img" ${state.isExporting ? 'disabled' : ''} class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-[11px] sm:text-xs font-medium rounded-lg text-slate-200 flex items-center space-x-1 transition border border-slate-700">
-            ${ICONS.download.replace('currentColor','currentColor').replace('w-3.5 h-3.5','w-3.5 h-3.5 text-pink-400')}<span>Imagen</span>
-          </button>
-          <button id="btn-export-pdf" ${state.isExporting ? 'disabled' : ''} class="px-2.5 py-1.5 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-[11px] sm:text-xs font-medium rounded-lg text-white flex items-center space-x-1 transition shadow-sm">
-            ${ICONS.fileText}<span>PDF</span>
-          </button>
-          <button id="btn-whatsapp" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-[11px] sm:text-xs font-medium rounded-lg text-white flex items-center space-x-1 transition shadow-sm">
-            ${ICONS.whatsapp}<span>WhatsApp</span>
-          </button>
-          <button id="btn-back-editor" class="px-2.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[11px] sm:text-xs font-medium rounded-lg flex items-center space-x-1 border border-rose-500/30 transition">
-            ${ICONS.x}<span>Editar</span>
-          </button>
-        </div>
-      </div>
-    </div>`;
-  }
+      );
+    }
 
-  return `
-  <header class="no-print border-b shadow-lg sticky top-0 z-30 transition-colors duration-300 ${state.isD
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
