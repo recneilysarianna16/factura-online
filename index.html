@@ -78,8 +78,8 @@
       ]);
       const [discountPercent, setDiscountPercent] = useState(0);
 
-      const [paymentInfo, setPaymentInfo] = useState('Pago Móvil / Transferencia Banesco o Mercantil\nZelle: pagos@arifashion.com');
-      const [notes, notesSet] = useState('Gracias por tu compra. Cambios válidos únicamente dentro de los 7 días con etiqueta intacta.');
+      const [paymentInfo, setPaymentInfo] = useState('');
+      const [notes, notesSet] = useState('');
 
       const [invoiceHistory, setInvoiceHistory] = useState(() => {
         const saved = localStorage.getItem('ari_invoice_history');
@@ -586,6 +586,7 @@
                       <label className="block text-[11px] font-semibold mb-1 text-slate-400">Datos Bancarios</label>
                       <textarea
                         rows="3"
+                        placeholder="Ej: Pago Móvil / Transferencia Banesco o Mercantil&#10;Zelle: pagos@arifashion.com"
                         value={paymentInfo}
                         onChange={(e) => setPaymentInfo(e.target.value)}
                         className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
@@ -595,6 +596,7 @@
                       <label className="block text-[11px] font-semibold mb-1 text-slate-400">Notas Adicionales</label>
                       <textarea
                         rows="2"
+                        placeholder="Ej: Gracias por tu compra. Cambios válidos dentro de los 7 días."
                         value={notes}
                         onChange={(e) => notesSet(e.target.value)}
                         className={`w-full text-xs p-2.5 rounded-lg outline-none border ${isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-800'}`}
